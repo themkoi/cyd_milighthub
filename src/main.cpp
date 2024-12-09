@@ -1,44 +1,7 @@
 #ifndef UNIT_TEST
 
-#include <LEDStatus.h>
-#include <WiFiManager.h>
-#include <ArduinoJson.h>
-#include <cstdlib>
-#include <FS.h>
-#include <IntParsing.h>
-#include <LinkedList.h>
-#include <LEDStatus.h>
-#include <GroupStateStore.h>
-#include <MiLightRadioConfig.h>
-#include <MiLightRemoteConfig.h>
-#include <MiLightHttpServer.h>
-#include <Settings.h>
-#include <MiLightUdpServer.h>
-#include <MqttClient.h>
-#include <MiLightDiscoveryServer.h>
-#include <MiLightClient.h>
-#include <BulbStateUpdater.h>
-#include <RadioSwitchboard.h>
-#include <PacketSender.h>
-#include <HomeAssistantDiscoveryClient.h>
-#include <TransitionController.h>
-#include <ProjectWifi.h>
-
-#include <ESPId.h>
-
-#ifdef ESP8266
-  #include <ESP8266mDNS.h>
-  #include <ESP8266SSDP.h>
-#elif ESP32
-  #include "ESP32SSDP.h"
-  #include <esp_wifi.h>
-  #include <SPIFFS.h>
-  #include <ESPmDNS.h>
-#endif
-
-#include <vector>
-#include <memory>
-#include "ProjectFS.h"
+#include "defines.h"
+#include "milightIncludes.h"
 
 WiFiManager* wifiManager;
 // because of callbacks, these need to be in the higher scope :(
@@ -427,8 +390,12 @@ void postConnectSetup() {
   Serial.printf_P(PSTR("Setup complete (version %s)\n"), QUOTE(MILIGHT_HUB_VERSION));
 }
 
+
+#include "defines.h"
+
+
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   String ssid = "ESP" + String(getESPId());
 
   // load up our persistent settings from the file system
@@ -517,7 +484,7 @@ void setup() {
       ledStatus->continuous(settings.ledModeWifiFailed);
 
       Serial.println(F("Wifi config portal timed out.  Restarting..."));
-      delay(10000);
+      delay(1000);
       ESP.restart();
   });
 
@@ -531,12 +498,46 @@ void setup() {
 
     postConnectSetup();
   }
+
+    vTaskDelay(10 / portTICK_PERIOD_MS);  // Delay to avoid busy loopi
+    initLight();
+    setupMMWave();
+    initCydHardware();
+
+    delay(1000);
+
+xTaskCreatePinnedToCore(
+    milightTask,         // Task function
+    "LoopSensor",       // Name of the task (for debugging)
+    6096,                // Stack size (in words)
+    NULL,                // Task parameter
+    0,                   // Task priority
+    NULL,                // Task handle (optional)
+    0                    // Core ID (0 for Core 0, 1 for Core 1)
+);
+
+xTaskCreatePinnedToCore(
+    loopDisplay,         // Task function
+    "LoopSensor",       // Name of the task (for debugging)
+    2000,                // Stack size (in words)
+    NULL,                // Task parameter
+    0,                   // Task priority
+    NULL,                // Task handle (optional)
+    0                    // Core ID (0 for Core 0, 1 for Core 1)
+);
 }
 
 size_t i = 0;
 
 void loop() {
-  // update LED with status
+  loopMMWave();
+  loopBacklight();
+}
+
+void milightTask(void *param) {
+
+  for(;;){
+    // update LED with status
   ledStatus->handle();
 
   if (shouldRestart()) {
@@ -571,6 +572,8 @@ void loop() {
     packetSender->loop();
 
     transitions.loop();
+  }
+  vTaskDelay(1);
   }
 }
 
