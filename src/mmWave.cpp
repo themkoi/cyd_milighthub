@@ -14,7 +14,7 @@ void setupMMWave()
     Serial.printf("Radar status: %s\n", isRadarEnabled ? "Ok" : "Failed");
 
     radar.setRadarConfigurationMaximumGates(4);
-    radar.setRadarConfigurationDelay(20);
+    radar.setRadarConfigurationDelay(2);
     radar.setRadarConfigurationActiveFrameNum(20);
     radar.setRadarConfigurationInactiveFrameNum(20);
 

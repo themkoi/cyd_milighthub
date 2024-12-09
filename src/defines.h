@@ -2,8 +2,6 @@
 #define DEFINES_H
 
 #include <Arduino.h>
-#define LV_CONF_INCLUDE_SIMPLE
-
 
 #include "milightIncludes.h"
 #include "lightControl.h"
@@ -43,6 +41,8 @@
 #define XPT2046_MISO 39
 #define XPT2046_CLK 25
 #define XPT2046_CS 33
+
+#include <lvgl.h>
 
 #include "cyd.h"
 

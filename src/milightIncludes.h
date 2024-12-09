@@ -4,7 +4,7 @@
 
 #include "defines.h"
 
-#include <SPIFFS.h>
+#include <FS.h>
 
 #include <LEDStatus.h>
 #include <WiFiManager.h>

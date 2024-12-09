@@ -21,5 +21,6 @@ int readLdr();
 void apply_slider_styles(lv_obj_t *slider);
 void update_label_text(lv_obj_t *label, char symbol, int number);
 
+void setupUi();
 
 #endif

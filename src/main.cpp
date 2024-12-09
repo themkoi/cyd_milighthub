@@ -503,6 +503,7 @@ void setup() {
     initLight();
     setupMMWave();
     initCydHardware();
+    setupUi();
 
     delay(1000);
 
@@ -518,8 +519,8 @@ xTaskCreatePinnedToCore(
 
 xTaskCreatePinnedToCore(
     loopDisplay,         // Task function
-    "LoopSensor",       // Name of the task (for debugging)
-    2000,                // Stack size (in words)
+    "LoopDisplay",       // Name of the task (for debugging)
+    6096,                // Stack size (in words)
     NULL,                // Task parameter
     0,                   // Task priority
     NULL,                // Task handle (optional)
