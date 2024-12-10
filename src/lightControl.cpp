@@ -1,14 +1,15 @@
 #include "lightControl.h"
 
-BulbId myBulbId(0x1, 0, MiLightRemoteType::REMOTE_TYPE_RGB);
+const uint16_t deviceId = 4276;
+const uint8_t groupId = 0;
+
+BulbId myBulbId(deviceId, groupId, MiLightRemoteType::REMOTE_TYPE_RGB);
 
 GroupState *state;
-uint8_t brightness;
+int brightness;
 
 uint8_t brightnessBeforeOff = 100;
 
-const uint16_t deviceId = 0x1;
-const uint8_t groupId = 1;
 // config is a MiLightRemoteConfig. there are constants available. For example, FUT096Config is for rgbw
 const MiLightRemoteConfig *config = &FUT098Config;
 
@@ -17,6 +18,7 @@ void initLight()
 
     milightClient->prepare(config, deviceId, groupId);
     state = stateStore->get(myBulbId);
+    milightClient->updateMode(BULB_MODE_COLOR);
     brightness = state->getBrightness();
     brightnessBeforeOff = state->getBrightness();
     turnLightOn();
@@ -46,7 +48,7 @@ void turnLightOff()
     {
         milightClient->prepare(config, deviceId, groupId);
         brightnessBeforeOff = state->getBrightness();
-        uint8_t brightness = 0;
+        brightness = 0;
         milightClient->updateBrightness(brightness);
         for (size_t i = 0; i < 200; i++)
         {
@@ -54,5 +56,15 @@ void turnLightOff()
         }
         milightClient->updateStatus(MiLightStatus::OFF);
         Serial.println("Turned light off");
+    }
+}
+
+
+void setBrightness(uint8_t brightness)
+{
+    if (state->isOn() == true)
+    {
+        milightClient->prepare(config, deviceId, groupId);
+        milightClient->updateBrightness(brightness);
     }
 }

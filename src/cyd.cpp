@@ -3,36 +3,27 @@
 #include "cyd.h"
 
 // LVGL display buffer and resolution
-#define TFT_HOR_RES 320
-#define TFT_VER_RES 240
+#define TFT_HOR_RES 240
+#define TFT_VER_RES 320
 #define DRAW_BUF_SIZE (TFT_HOR_RES * TFT_VER_RES / 10 * (LV_COLOR_DEPTH / 8))
 
-// RGB LED Pins
-#define CYD_LED_BLUE 17
-#define CYD_LED_RED 4
-#define CYD_LED_GREEN 16
-
-// Color Filters
-#define RED_FILTER 0.25
-#define GREEN_FILTER 1
-#define BLUE_FILTER 0.4
-
 lv_color_t sliderColor = lv_color_make(255, 255, 255);
-lv_obj_t *sliders[3];
-lv_obj_t *labels[3];
+lv_obj_t *slider;
+lv_obj_t *label;
 
+TFT_eSPI tft = TFT_eSPI();
 SoftSPI SoftwareSpi(XPT2046_MOSI, XPT2046_MISO, XPT2046_CLK);
 XPT2046_Touchscreen ts(XPT2046_CS, XPT2046_IRQ);
-TFT_eSPI tft = TFT_eSPI();
 
-// Custom touchpad read for LVGL
+uint16_t touchScreenMinimumX = 200, touchScreenMaximumX = 3700, touchScreenMinimumY = 280, touchScreenMaximumY = 3800;
+
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
-  if (ts.tirqTouched() && ts.touched())
+  if (ts.touched())
   {
     TS_Point p = ts.getPoint();
-    data->point.x = map(p.x, 200, 3700, 0, TFT_HOR_RES);
-    data->point.y = map(p.y, 240, 3800, 0, TFT_VER_RES);
+    data->point.x = map(p.x, touchScreenMinimumX, touchScreenMaximumX, 0, TFT_HOR_RES);
+    data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 0, TFT_VER_RES);
     data->state = LV_INDEV_STATE_PRESSED;
   }
   else
@@ -41,22 +32,34 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
   }
 }
 
-// Slider event callback
 static void slider_event_cb(lv_event_t *e)
 {
-  int red = lv_slider_get_value(sliders[0]);
-  int green = lv_slider_get_value(sliders[1]);
-  int blue = lv_slider_get_value(sliders[2]);
+  lv_obj_t *slider = (lv_obj_t *)lv_event_get_target(e);
+  brightness = lv_slider_get_value(slider); // Update brightness value
+  char buf[32];
+  snprintf(buf, sizeof(buf), "Brightness: %d", brightness);
+  lv_label_set_text(label, buf);
+}
 
-  sliderColor = lv_color_make(red, green, blue);
+static void slider_released_cb(lv_event_t *e)
+{
+  setBrightness(brightness); // Apply brightness when released
+}
 
-  apply_slider_styles(sliders[0]);
-  apply_slider_styles(sliders[1]);
-  apply_slider_styles(sliders[2]);
+void update_slider_from_variable()
+{
+  state = stateStore->get(myBulbId);
+  int currentBrightness = state->getBrightness();
 
-  update_label_text(labels[0], 'R', red);
-  update_label_text(labels[1], 'G', green);
-  update_label_text(labels[2], 'B', blue);
+  // Sync the slider's position with the shared variable
+  if (lv_slider_get_value(slider) != currentBrightness && ts.touched() == false)
+  {
+    lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
+    lv_label_set_text(label, buf); // Update the label to reflect the new value
+    Serial.println("updating slider: " + String(currentBrightness) + " " + String(lv_slider_get_value(slider)));
+  }
 }
 
 // Helper functions
@@ -74,27 +77,30 @@ void update_label_text(lv_obj_t *label, char symbol, int number)
   lv_label_set_text(label, buf);
 }
 
-void setup_ui(lv_obj_t *parent)
+// Setup UI function
+void initUi(lv_obj_t *parent)
 {
-  for (int i = 0; i < 3; i++)
-  {
-    sliders[i] = lv_slider_create(parent);
-    lv_obj_set_width(sliders[i], 220);
-    lv_obj_align(sliders[i], LV_ALIGN_TOP_MID, 0, 40 + i * 50);
-    lv_slider_set_range(sliders[i], 0, 255);
-    lv_slider_set_value(sliders[i], 255, LV_ANIM_OFF);
-    apply_slider_styles(sliders[i]);
-    lv_obj_add_event_cb(sliders[i], slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  state = stateStore->get(myBulbId);
+  int currentBrightness = state->getBrightness();
+  label = lv_label_create(parent);
+  char buf[32];
+  snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
+  lv_label_set_text(label, buf);
+  lv_obj_set_style_text_color(label, lv_color_white(), 0); // Set text color to white
+  lv_obj_align(label, LV_ALIGN_CENTER, 0, -20);
 
-    labels[i] = lv_label_create(parent);
-    lv_obj_set_width(labels[i], 42);
-    lv_obj_align(labels[i], LV_ALIGN_BOTTOM_LEFT, 50 + i * 50, -30);
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%c: 255", 'R' + i);
-    lv_label_set_text(labels[i], buf);
-  }
+  slider = lv_slider_create(parent);
+  lv_slider_set_range(slider, 0, 100);
+  lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
+  lv_obj_set_width(slider, 220);
+  lv_obj_align(slider, LV_ALIGN_CENTER, 0, 0);
+  apply_slider_styles(slider);
+  // Add event callbacks
+  lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  lv_obj_add_event_cb(slider, slider_released_cb, LV_EVENT_RELEASED, NULL); // Runs when slider is released
 }
 
+// Hardware initialization function
 void initCydHardware()
 {
 
@@ -105,7 +111,7 @@ void initCydHardware()
   SoftwareSpi.setClockDivider(SPI_CLOCK_DIV2);
   SoftwareSpi.begin();
   ts.begin(SoftwareSpi);
-  ts.setRotation(0);
+  ts.setRotation(2);
 
 // setup backlight
 #if ESP_IDF_VERSION_MAJOR == 5
@@ -132,10 +138,7 @@ void initCydHardware()
 
 void ledcAnalogWrite(uint8_t channel, uint32_t value, uint32_t valueMax)
 {
-  // calculate duty, 4095 from 2 ^ 12 - 1
   uint32_t duty = (4095 / valueMax) * min(value, valueMax);
-
-  // write duty to LEDC
   ledcWrite(channel, duty);
 }
 
@@ -144,32 +147,13 @@ int readLdr()
   return analogRead(LDR_PIN);
 }
 
-void initUi(lv_obj_t *parent)
-{
-  for (int i = 0; i < 3; i++)
-  {
-    sliders[i] = lv_slider_create(parent);
-    lv_obj_set_width(sliders[i], 220);
-    lv_obj_align(sliders[i], LV_ALIGN_TOP_MID, 0, 40 + i * 50);
-    lv_slider_set_range(sliders[i], 0, 255);
-    lv_slider_set_value(sliders[i], 255, LV_ANIM_OFF);
-    apply_slider_styles(sliders[i]);
-    lv_obj_add_event_cb(sliders[i], slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-
-    labels[i] = lv_label_create(parent);
-    lv_obj_set_width(labels[i], 42);
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%c: 255", 'R' + i);
-    lv_label_set_text(labels[i], buf);
-  }
-}
-
+// LVGL setup
 void setupUi()
 {
   lv_init();
   uint8_t *draw_buf = new uint8_t[DRAW_BUF_SIZE];
   lv_display_t *disp = lv_tft_espi_create(TFT_HOR_RES, TFT_VER_RES, draw_buf, DRAW_BUF_SIZE);
-  lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_270);
+  lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_90);
 
   lv_obj_t *scr = lv_scr_act();
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
@@ -178,18 +162,19 @@ void setupUi()
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(indev, my_touchpad_read);
 
-  setup_ui(scr);
+  initUi(scr);
+  tft.fillScreen(TFT_BLACK);
 }
 
 void loopBacklight()
 {
-  if (readLdr() > 300)
+  if (readLdr() < 300 || ts.touched() == true)
   {
-    ledcAnalogWrite(LEDC_CHANNEL_0, 0);
+    ledcAnalogWrite(LEDC_CHANNEL_0, 150);
   }
   else
   {
-    ledcAnalogWrite(LEDC_CHANNEL_0, 150);
+    ledcAnalogWrite(LEDC_CHANNEL_0, 0);
   }
 }
 
@@ -199,13 +184,10 @@ void loopDisplay(void *param)
 {
   for (;;)
   {
-    lv_tick_inc(millis() - lastTick); // update the tick timer
+    lv_tick_inc(millis() - lastTick);
     lastTick = millis();
     lv_timer_handler();
-
-    analogWrite(CYD_LED_RED, 255 - (sliderColor.red * RED_FILTER));
-    analogWrite(CYD_LED_GREEN, 255 - (sliderColor.green * GREEN_FILTER));
-    analogWrite(CYD_LED_BLUE, 255 - (sliderColor.blue * BLUE_FILTER));
-    vTaskDelay(10 / portTICK_PERIOD_MS); // Add a dela
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+    update_slider_from_variable();
   }
 }

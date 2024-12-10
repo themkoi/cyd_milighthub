@@ -13,9 +13,10 @@ void setupMMWave()
     bool isRadarEnabled = radar.begin(mmWaveSerial, Serial);
     Serial.printf("Radar status: %s\n", isRadarEnabled ? "Ok" : "Failed");
 
-    radar.setRadarConfigurationMaximumGates(4);
-    radar.setRadarConfigurationDelay(2);
-    radar.setRadarConfigurationActiveFrameNum(20);
+    radar.setRadarConfigurationMaximumGates(5);
+    radar.setRadarConfigurationMinimumGates(0);
+    radar.setRadarConfigurationDelay(5);
+    radar.setRadarConfigurationActiveFrameNum(5);
     radar.setRadarConfigurationInactiveFrameNum(20);
 
     if (isRadarEnabled && radar.readAllRadarConfigs())
@@ -47,7 +48,10 @@ uint32_t lastReading = 0;
 static bool previousState = true; // Tracks the previous state
 unsigned long lastStateChange;
 
-#define RESPONSE_TIME 5000
+#define RESPONSE_TIME 4000
+#define RESPONSE_TIME_WHEN_ACTIVE 10000
+
+int responseTime = 5000;
 
 void loopMMWave()
 {
@@ -55,7 +59,7 @@ void loopMMWave()
     static int count = 0;       // Count of readings
     static float average = 0.0; // Calculated average
 
-    if (radar.isConnected() && millis() - lastStateChange >= RESPONSE_TIME)
+    if (radar.isConnected() && millis() - lastStateChange >= responseTime)
     {
         lastReading = millis();
         while (millis() - lastReading < 500)
@@ -77,33 +81,34 @@ void loopMMWave()
         Serial.println("Started averaging...");
         total = 0.0;
         count = 0;
+        if (previousState == true)
+        {
+            responseTime = RESPONSE_TIME;
+        } else {
+            responseTime = RESPONSE_TIME_WHEN_ACTIVE;
+        }
+        
     }
-    while (millis() - lastStateChange <= RESPONSE_TIME)
+    while (millis() - lastStateChange <= responseTime)
     {
 
-        if (radar.isConnected() && millis() - lastStateChange >= RESPONSE_TIME)
+        if (radar.read() && millis() - lastStateChange <= responseTime)
         {
-            lastReading = millis();
-            while (millis() - lastReading < 500)
-            {
-                if (radar.read())
-                {
-                    isDetected = radar.isTargetDetected;
-                    total += isDetected ? 1.0 : 0.0;
-                    count++;
 
-                    average = total / count;
+            isDetected = radar.isTargetDetected;
+            total += isDetected ? 1.0 : 0.0;
+            count++;
 
-                    Serial.print(" | Average: ");
-                    Serial.println(average);
-                    Serial.print(" | Count: ");
-                    Serial.println(count);
-                }
-            }
+            average = total / count;
+
+            Serial.print(" | Average: ");
+            Serial.println(average);
+            Serial.print(" | Count: ");
+            Serial.println(count);
         }
     }
 
-    if (millis() - lastStateChange > RESPONSE_TIME && count > 0)
+    if (millis() - lastStateChange > responseTime && count > 0)
     {
         Serial.print("Final Average: ");
         Serial.println(average);
