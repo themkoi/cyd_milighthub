@@ -7,9 +7,12 @@
 #define TFT_VER_RES 320
 #define DRAW_BUF_SIZE (TFT_HOR_RES * TFT_VER_RES / 10 * (LV_COLOR_DEPTH / 8))
 
-lv_color_t sliderColor = lv_color_make(255, 255, 255);
+lv_color_t whiteColor = lv_color_make(255, 255, 255);
+lv_color_t darkColor = lv_color_make(2,8,23);
 lv_obj_t *slider;
 lv_obj_t *label;
+
+bool isTouched = false;
 
 TFT_eSPI tft = TFT_eSPI();
 SoftSPI SoftwareSpi(XPT2046_MOSI, XPT2046_MISO, XPT2046_CLK);
@@ -52,7 +55,7 @@ void update_slider_from_variable()
   int currentBrightness = state->getBrightness();
 
   // Sync the slider's position with the shared variable
-  if (lv_slider_get_value(slider) != currentBrightness && ts.touched() == false)
+  if (lv_slider_get_value(slider) != currentBrightness && isTouched == false)
   {
     lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
     char buf[32];
@@ -65,9 +68,9 @@ void update_slider_from_variable()
 // Helper functions
 void apply_slider_styles(lv_obj_t *slider)
 {
-  lv_obj_set_style_bg_color(slider, sliderColor, LV_PART_MAIN);
-  lv_obj_set_style_bg_color(slider, sliderColor, LV_PART_INDICATOR);
-  lv_obj_set_style_bg_color(slider, lv_color_lighten(sliderColor, LV_OPA_30), LV_PART_KNOB);
+  lv_obj_set_style_bg_color(slider, whiteColor, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(slider, whiteColor, LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(slider, lv_color_lighten(whiteColor, LV_OPA_30), LV_PART_KNOB);
 }
 
 void update_label_text(lv_obj_t *label, char symbol, int number)
@@ -77,16 +80,60 @@ void update_label_text(lv_obj_t *label, char symbol, int number)
   lv_label_set_text(label, buf);
 }
 
-// Setup UI function
+bool lightSwitchState = false; // Boolean state for the switch
+lv_obj_t *lightSwitch;
+
+// Event callback for the switch
+static void switch_event_cb(lv_event_t *e)
+{
+  lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e); // Explicit cast to lv_obj_t*
+  lightSwitchState = lv_obj_has_state(sw, LV_STATE_CHECKED);
+  Serial.println("Switch toggled: " + String(lightSwitchState));
+  if (lightSwitchState)
+  {
+    milightClient->updateStatus(MiLightStatus::ON);
+  }
+  else
+  {
+    milightClient->updateStatus(MiLightStatus::OFF);
+  }
+}
+
+// Update switch appearance based on state
+void update_switch_from_variable()
+{
+  state = stateStore->get(myBulbId);
+
+  lv_obj_clear_state(lightSwitch, LV_STATE_CHECKED);
+  if (state->isOn())
+  {
+    lv_obj_add_state(lightSwitch, LV_STATE_CHECKED);
+  }
+}
+
+void apply_switch_styles(lv_obj_t *sw)
+{
+    lv_obj_set_style_bg_color(sw, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_CHECKED); // White background for ON
+    lv_obj_set_style_bg_color(sw, lv_color_hex(0x1A1A1A), LV_PART_MAIN | LV_STATE_DEFAULT); // Dark background for OFF
+    lv_obj_set_style_border_width(sw, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(sw, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+
+    // Knob styles
+    lv_obj_set_style_bg_color(sw, lv_color_hex(0x000000), LV_PART_INDICATOR | LV_STATE_CHECKED); // Black knob for ON
+    lv_obj_set_style_bg_color(sw, lv_color_hex(0x3A3A3A), LV_PART_INDICATOR | LV_STATE_DEFAULT); // Dark knob for OFF
+}
+
+// Modify the UI setup function to include the switch
 void initUi(lv_obj_t *parent)
 {
   state = stateStore->get(myBulbId);
   int currentBrightness = state->getBrightness();
+
   label = lv_label_create(parent);
   char buf[32];
   snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
   lv_label_set_text(label, buf);
-  lv_obj_set_style_text_color(label, lv_color_white(), 0); // Set text color to white
+  lv_obj_set_style_text_color(label, lv_color_white(), 0);
   lv_obj_align(label, LV_ALIGN_CENTER, 0, -20);
 
   slider = lv_slider_create(parent);
@@ -95,9 +142,19 @@ void initUi(lv_obj_t *parent)
   lv_obj_set_width(slider, 220);
   lv_obj_align(slider, LV_ALIGN_CENTER, 0, 0);
   apply_slider_styles(slider);
-  // Add event callbacks
+
   lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-  lv_obj_add_event_cb(slider, slider_released_cb, LV_EVENT_RELEASED, NULL); // Runs when slider is released
+  lv_obj_add_event_cb(slider, slider_released_cb, LV_EVENT_RELEASED, NULL);
+
+  // Add switch to the bottom-left corner
+  lightSwitch = lv_switch_create(parent);
+  lv_obj_align(lightSwitch, LV_ALIGN_BOTTOM_LEFT, 50, -50); // Position in bottom-left corner
+  lv_obj_add_event_cb(lightSwitch, switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+  apply_switch_styles(lightSwitch);
+
+  // Initial state of the switch
+  update_switch_from_variable();
 }
 
 // Hardware initialization function
@@ -163,7 +220,6 @@ void setupUi()
   lv_indev_set_read_cb(indev, my_touchpad_read);
 
   initUi(scr);
-  tft.fillScreen(TFT_BLACK);
 }
 
 void loopBacklight()
@@ -184,10 +240,12 @@ void loopDisplay(void *param)
 {
   for (;;)
   {
+    isTouched = ts.touched();
     lv_tick_inc(millis() - lastTick);
     lastTick = millis();
     lv_timer_handler();
     vTaskDelay(10 / portTICK_PERIOD_MS);
     update_slider_from_variable();
+    update_switch_from_variable();
   }
 }
