@@ -395,6 +395,7 @@ void postConnectSetup() {
 
 
 void setup() {
+  setCpuFrequencyMhz(240);
   Serial.begin(115200);
   String ssid = "ESP" + String(getESPId());
 
@@ -531,7 +532,10 @@ xTaskCreatePinnedToCore(
 size_t i = 0;
 
 void loop() {
+  if (mmwaveState == true)
+  {
   loopMMWave();
+  }
   loopBacklight();
 }
 

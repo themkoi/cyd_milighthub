@@ -9,6 +9,8 @@ extern XPT2046_Touchscreen ts;
 
 extern TFT_eSPI tft;
 
+extern bool mmwaveState;
+
 void loopDisplay(void *param);
 void loopBacklight();
 

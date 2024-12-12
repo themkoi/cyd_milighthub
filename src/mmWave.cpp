@@ -49,7 +49,7 @@ static bool previousState = true; // Tracks the previous state
 unsigned long lastStateChange;
 
 #define RESPONSE_TIME 4000
-#define RESPONSE_TIME_WHEN_ACTIVE 10000
+#define RESPONSE_TIME_WHEN_ACTIVE 30000
 
 int responseTime = 5000;
 
@@ -81,7 +81,7 @@ void loopMMWave()
         Serial.println("Started averaging...");
         total = 0.0;
         count = 0;
-        if (previousState == true)
+        if (isDetected == true)
         {
             responseTime = RESPONSE_TIME;
         } else {

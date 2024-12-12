@@ -8,9 +8,19 @@
 #define DRAW_BUF_SIZE (TFT_HOR_RES * TFT_VER_RES / 10 * (LV_COLOR_DEPTH / 8))
 
 lv_color_t whiteColor = lv_color_make(255, 255, 255);
-lv_color_t darkColor = lv_color_make(2,8,23);
+lv_color_t mauveColor = lv_color_make(203, 166, 247);
 lv_obj_t *slider;
-lv_obj_t *label;
+lv_obj_t *brightnessLabel;
+
+bool lightSwitchState = false; // Boolean state for the switch
+lv_obj_t *lightSwitch;
+lv_obj_t *lightLabel;
+
+bool mmwaveState = true; // Boolean state for the switch
+lv_obj_t *mmwaveSwitch;
+lv_obj_t *mmwaveLabel;
+
+lv_obj_t *ipLabel;
 
 bool isTouched = false;
 
@@ -18,13 +28,17 @@ TFT_eSPI tft = TFT_eSPI();
 SoftSPI SoftwareSpi(XPT2046_MOSI, XPT2046_MISO, XPT2046_CLK);
 XPT2046_Touchscreen ts(XPT2046_CS, XPT2046_IRQ);
 
-uint16_t touchScreenMinimumX = 200, touchScreenMaximumX = 3700, touchScreenMinimumY = 280, touchScreenMaximumY = 3800;
+uint16_t touchScreenMinimumX = 400, touchScreenMaximumX = 3836, touchScreenMinimumY = 350, touchScreenMaximumY = 3850;
 
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
   if (ts.touched())
   {
     TS_Point p = ts.getPoint();
+    Serial.print("X: ");
+    Serial.print(p.x);
+    Serial.print(", Y: ");
+    Serial.println(p.y);
     data->point.x = map(p.x, touchScreenMinimumX, touchScreenMaximumX, 0, TFT_HOR_RES);
     data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 0, TFT_VER_RES);
     data->state = LV_INDEV_STATE_PRESSED;
@@ -41,7 +55,7 @@ static void slider_event_cb(lv_event_t *e)
   brightness = lv_slider_get_value(slider); // Update brightness value
   char buf[32];
   snprintf(buf, sizeof(buf), "Brightness: %d", brightness);
-  lv_label_set_text(label, buf);
+  lv_label_set_text(brightnessLabel, buf);
 }
 
 static void slider_released_cb(lv_event_t *e)
@@ -60,7 +74,7 @@ void update_slider_from_variable()
     lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
     char buf[32];
     snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
-    lv_label_set_text(label, buf); // Update the label to reflect the new value
+    lv_label_set_text(brightnessLabel, buf); // Update the label to reflect the new value
     Serial.println("updating slider: " + String(currentBrightness) + " " + String(lv_slider_get_value(slider)));
   }
 }
@@ -80,11 +94,8 @@ void update_label_text(lv_obj_t *label, char symbol, int number)
   lv_label_set_text(label, buf);
 }
 
-bool lightSwitchState = false; // Boolean state for the switch
-lv_obj_t *lightSwitch;
-
 // Event callback for the switch
-static void switch_event_cb(lv_event_t *e)
+static void light_switch_event_cb(lv_event_t *e)
 {
   lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e); // Explicit cast to lv_obj_t*
   lightSwitchState = lv_obj_has_state(sw, LV_STATE_CHECKED);
@@ -99,28 +110,26 @@ static void switch_event_cb(lv_event_t *e)
   }
 }
 
-// Update switch appearance based on state
-void update_switch_from_variable()
+static void mmwave_switch_event_cb(lv_event_t *e)
 {
-  state = stateStore->get(myBulbId);
+  lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e); // Explicit cast to lv_obj_t*
+  mmwaveState = lv_obj_has_state(sw, LV_STATE_CHECKED);
+  Serial.println("Switch toggled: " + String(mmwaveState));
+}
 
-  lv_obj_clear_state(lightSwitch, LV_STATE_CHECKED);
-  if (state->isOn())
+// Update switch appearance based on state
+void update_switch_from_variable(lv_obj_t *Switch, bool variable)
+{
+  lv_obj_clear_state(Switch, LV_STATE_CHECKED);
+  if (variable)
   {
-    lv_obj_add_state(lightSwitch, LV_STATE_CHECKED);
+    lv_obj_add_state(Switch, LV_STATE_CHECKED);
   }
 }
 
 void apply_switch_styles(lv_obj_t *sw)
 {
-    lv_obj_set_style_bg_color(sw, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_CHECKED); // White background for ON
-    lv_obj_set_style_bg_color(sw, lv_color_hex(0x1A1A1A), LV_PART_MAIN | LV_STATE_DEFAULT); // Dark background for OFF
-    lv_obj_set_style_border_width(sw, 2, LV_PART_MAIN);
-    lv_obj_set_style_border_color(sw, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-
-    // Knob styles
-    lv_obj_set_style_bg_color(sw, lv_color_hex(0x000000), LV_PART_INDICATOR | LV_STATE_CHECKED); // Black knob for ON
-    lv_obj_set_style_bg_color(sw, lv_color_hex(0x3A3A3A), LV_PART_INDICATOR | LV_STATE_DEFAULT); // Dark knob for OFF
+    lv_obj_set_style_bg_color(sw, lv_color_hex(0xca9ee6), LV_PART_INDICATOR | LV_STATE_CHECKED);
 }
 
 // Modify the UI setup function to include the switch
@@ -129,32 +138,56 @@ void initUi(lv_obj_t *parent)
   state = stateStore->get(myBulbId);
   int currentBrightness = state->getBrightness();
 
-  label = lv_label_create(parent);
+  brightnessLabel = lv_label_create(parent);
   char buf[32];
   snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
-  lv_label_set_text(label, buf);
-  lv_obj_set_style_text_color(label, lv_color_white(), 0);
-  lv_obj_align(label, LV_ALIGN_CENTER, 0, -20);
+  lv_label_set_text(brightnessLabel, buf);
+  lv_obj_set_style_text_color(brightnessLabel, lv_color_white(), 0);
+  lv_obj_align(brightnessLabel, LV_ALIGN_CENTER, 0, -20);
 
   slider = lv_slider_create(parent);
   lv_slider_set_range(slider, 0, 100);
   lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
-  lv_obj_set_width(slider, 220);
+  lv_obj_set_width(slider, 250);
   lv_obj_align(slider, LV_ALIGN_CENTER, 0, 0);
   apply_slider_styles(slider);
 
   lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
   lv_obj_add_event_cb(slider, slider_released_cb, LV_EVENT_RELEASED, NULL);
 
-  // Add switch to the bottom-left corner
   lightSwitch = lv_switch_create(parent);
-  lv_obj_align(lightSwitch, LV_ALIGN_BOTTOM_LEFT, 50, -50); // Position in bottom-left corner
-  lv_obj_add_event_cb(lightSwitch, switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-
   apply_switch_styles(lightSwitch);
+  lv_obj_align(lightSwitch, LV_ALIGN_BOTTOM_LEFT, 50, -50); // Position in bottom-left corner
+  lv_obj_add_event_cb(lightSwitch, light_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  lightLabel = lv_label_create(parent);
+  lv_label_set_text(lightLabel, "Light");
+  lv_obj_set_style_text_color(lightLabel, lv_color_white(), 0);
+  lv_obj_align(lightLabel, LV_ALIGN_BOTTOM_LEFT, 50, -30);
+
+  mmwaveSwitch = lv_switch_create(parent);
+  apply_switch_styles(mmwaveSwitch);
+  lv_obj_align(mmwaveSwitch, LV_ALIGN_BOTTOM_RIGHT, -50, -50); // Position in bottom-right corner
+  lv_obj_add_event_cb(mmwaveSwitch, mmwave_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  mmwaveLabel = lv_label_create(parent);
+  lv_label_set_text(mmwaveLabel, "mmWave");
+  lv_obj_set_style_text_color(mmwaveLabel, lv_color_white(), 0);
+  lv_obj_align(mmwaveLabel, LV_ALIGN_BOTTOM_LEFT, 320-100, -30);
+
+  char ipBuffer[32];
+  String ipString = WiFi.localIP().toString();
+  snprintf(ipBuffer, sizeof(ipBuffer), "%s", ipString.c_str());
+
+  ipLabel = lv_label_create(parent);
+  lv_label_set_text(ipLabel, ipBuffer);
+  lv_obj_set_style_text_color(ipLabel, lv_color_white(), 0);
+  lv_obj_align(ipLabel, LV_ALIGN_TOP_MID, 0, 10);
 
   // Initial state of the switch
-  update_switch_from_variable();
+  state = stateStore->get(myBulbId);
+  bool isOn = state->isOn();
+  update_switch_from_variable(lightSwitch, isOn);
+
+  update_switch_from_variable(mmwaveSwitch, mmwaveState);
 }
 
 // Hardware initialization function
@@ -222,15 +255,43 @@ void setupUi()
   initUi(scr);
 }
 
+unsigned long backlightTimeout = 0;
+bool backlightActive = false;
+
+unsigned long touchStartTime = 0;
+bool touchDetected = false;
+
 void loopBacklight()
 {
-  if (readLdr() < 300 || ts.touched() == true)
+  if (ts.touched()) 
+  {
+    if (!touchDetected) {
+      touchStartTime = millis(); // Record the time when touch starts
+      touchDetected = true;
+    }
+    else if (millis() - touchStartTime >= 30) { // Check if touch has been active for 300ms
+      backlightTimeout = millis() + 20000; // Set timeout to 20 seconds
+      backlightActive = true;
+    }
+  }
+  else {
+    touchDetected = false; // Reset if touch is no longer detected
+  }
+
+  if (backlightActive)
   {
     ledcAnalogWrite(LEDC_CHANNEL_0, 150);
+    if (millis() > backlightTimeout)
+    {
+      backlightActive = false; // Disable backlight after timeout
+    }
   }
   else
   {
-    ledcAnalogWrite(LEDC_CHANNEL_0, 0);
+    int ldrValue = readLdr();
+    int brightness = map(ldrValue, 400, 0, 0, 150); // Map LDR values to brightness
+    brightness = constrain(brightness, 0, 150);     // Ensure brightness stays within range
+    ledcAnalogWrite(LEDC_CHANNEL_0, brightness);
   }
 }
 
@@ -246,6 +307,8 @@ void loopDisplay(void *param)
     lv_timer_handler();
     vTaskDelay(10 / portTICK_PERIOD_MS);
     update_slider_from_variable();
-    update_switch_from_variable();
+    state = stateStore->get(myBulbId);
+    bool isOn = state->isOn();
+    update_switch_from_variable(lightSwitch, isOn);
   }
 }
