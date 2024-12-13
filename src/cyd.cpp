@@ -176,7 +176,8 @@ void initUi(lv_obj_t *parent)
   lightLabel = lv_label_create(parent);
   lv_label_set_text(lightLabel, "Light");
   lv_obj_set_style_text_color(lightLabel, lv_color_white(), 0);
-  lv_obj_align(lightLabel, LV_ALIGN_BOTTOM_LEFT, 50, -30);
+  lv_obj_set_style_text_align(lightLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+  lv_obj_align(lightLabel, LV_ALIGN_BOTTOM_LEFT, 56, -30);
 
   mmwaveSwitch = lv_switch_create(parent);
   apply_switch_styles(mmwaveSwitch);
@@ -185,7 +186,8 @@ void initUi(lv_obj_t *parent)
   mmwaveLabel = lv_label_create(parent);
   lv_label_set_text(mmwaveLabel, "mmWave");
   lv_obj_set_style_text_color(mmwaveLabel, lv_color_white(), 0);
-  lv_obj_align(mmwaveLabel, LV_ALIGN_BOTTOM_LEFT, 320 - 100, -30);
+  lv_obj_set_style_text_align(mmwaveLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+  lv_obj_align(mmwaveLabel, LV_ALIGN_BOTTOM_RIGHT, -41, -30);
 
   char ipBuffer[32];
   String ipString = WiFi.localIP().toString();
