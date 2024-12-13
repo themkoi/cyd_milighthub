@@ -21,6 +21,7 @@ lv_obj_t *mmwaveSwitch;
 lv_obj_t *mmwaveLabel;
 
 lv_obj_t *ipLabel;
+lv_obj_t *timeLabel;
 
 bool isTouched = false;
 
@@ -29,6 +30,19 @@ SoftSPI SoftwareSpi(XPT2046_MOSI, XPT2046_MISO, XPT2046_CLK);
 XPT2046_Touchscreen ts(XPT2046_CS, XPT2046_IRQ);
 
 uint16_t touchScreenMinimumX = 400, touchScreenMaximumX = 3836, touchScreenMinimumY = 350, touchScreenMaximumY = 3850;
+
+uint8_t lastSecond = 0;
+
+void updateTimeLabel()
+{
+  if (second() != lastSecond)
+  {
+  char timeBuffer[32];
+  snprintf(timeBuffer, sizeof(timeBuffer), "%02d:%02d:%02d", hour(), minute(), second());
+  lv_label_set_text(timeLabel, timeBuffer);
+  lastSecond = second();
+  }
+}
 
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
@@ -129,7 +143,7 @@ void update_switch_from_variable(lv_obj_t *Switch, bool variable)
 
 void apply_switch_styles(lv_obj_t *sw)
 {
-    lv_obj_set_style_bg_color(sw, lv_color_hex(0xca9ee6), LV_PART_INDICATOR | LV_STATE_CHECKED);
+  lv_obj_set_style_bg_color(sw, lv_color_hex(0xca9ee6), LV_PART_INDICATOR | LV_STATE_CHECKED);
 }
 
 // Modify the UI setup function to include the switch
@@ -171,7 +185,7 @@ void initUi(lv_obj_t *parent)
   mmwaveLabel = lv_label_create(parent);
   lv_label_set_text(mmwaveLabel, "mmWave");
   lv_obj_set_style_text_color(mmwaveLabel, lv_color_white(), 0);
-  lv_obj_align(mmwaveLabel, LV_ALIGN_BOTTOM_LEFT, 320-100, -30);
+  lv_obj_align(mmwaveLabel, LV_ALIGN_BOTTOM_LEFT, 320 - 100, -30);
 
   char ipBuffer[32];
   String ipString = WiFi.localIP().toString();
@@ -181,6 +195,12 @@ void initUi(lv_obj_t *parent)
   lv_label_set_text(ipLabel, ipBuffer);
   lv_obj_set_style_text_color(ipLabel, lv_color_white(), 0);
   lv_obj_align(ipLabel, LV_ALIGN_TOP_MID, 0, 10);
+
+  timeLabel = lv_label_create(parent);
+  lv_label_set_text(timeLabel, ipBuffer);
+  lv_obj_set_style_text_color(timeLabel, lv_color_white(), 0);
+  lv_obj_align(timeLabel, LV_ALIGN_TOP_MID, 0, 30);
+  updateTimeLabel();
 
   // Initial state of the switch
   state = stateStore->get(myBulbId);
@@ -263,18 +283,21 @@ bool touchDetected = false;
 
 void loopBacklight()
 {
-  if (ts.touched()) 
+  if (ts.touched())
   {
-    if (!touchDetected) {
+    if (!touchDetected)
+    {
       touchStartTime = millis(); // Record the time when touch starts
       touchDetected = true;
     }
-    else if (millis() - touchStartTime >= 30) { // Check if touch has been active for 300ms
+    else if (millis() - touchStartTime >= 30)
+    {                                      // Check if touch has been active for 300ms
       backlightTimeout = millis() + 20000; // Set timeout to 20 seconds
       backlightActive = true;
     }
   }
-  else {
+  else
+  {
     touchDetected = false; // Reset if touch is no longer detected
   }
 
@@ -310,5 +333,6 @@ void loopDisplay(void *param)
     state = stateStore->get(myBulbId);
     bool isOn = state->isOn();
     update_switch_from_variable(lightSwitch, isOn);
+    updateTimeLabel();
   }
 }

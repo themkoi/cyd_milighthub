@@ -356,8 +356,6 @@ void postConnectSetup() {
   delete wifiManager;
   wifiManager = NULL;
 
-  MDNS.addService("http", "tcp", 80);
-
   SSDP.setSchemaURL("description.xml");
   SSDP.setHTTPPort(80);
   SSDP.setName("ESP8266 MiLight Gateway");
@@ -397,6 +395,7 @@ void postConnectSetup() {
 void setup() {
   setCpuFrequencyMhz(240);
   Serial.begin(115200);
+  syncTimeLibWithRTC();
   String ssid = "ESP" + String(getESPId());
 
   // load up our persistent settings from the file system
@@ -419,46 +418,15 @@ void setup() {
   ledStatus = new LEDStatus(settings.ledPin);
   ledStatus->continuous(settings.ledModeWifiConfig);
 
-  // start up the wifi manager
-  if (! MDNS.begin("milight-hub")) {
-    Serial.println(F("Error setting up MDNS responder"));
-  }
-
-  // Allows us to have static IP config in the captive portal. Yucky pointers to pointers, just to have the settings carry through
   wifiManager = new WiFiManager();
 
   // Setting breakAfterConfig to true causes wifiExtraSettingsChange to be called whenever config params are changed
-  // (even when connection fails or user is just changing settings and not network)
   wifiManager->setBreakAfterConfig(true);
   wifiManager->setSaveConfigCallback(wifiExtraSettingsChange);
 
   wifiManager->setConfigPortalBlocking(false);
   wifiManager->setConnectTimeout(20);
   wifiManager->setConnectRetries(5);
-
-  wifiStaticIP = new WiFiManagerParameter(
-    "staticIP",
-    "Static IP (Leave blank for dhcp)",
-    settings.wifiStaticIP.c_str(),
-    MAX_IP_ADDR_LEN
-  );
-  wifiManager->addParameter(wifiStaticIP);
-
-  wifiStaticIPNetmask = new WiFiManagerParameter(
-    "netmask",
-    "Netmask (required if IP given)",
-    settings.wifiStaticIPNetmask.c_str(),
-    MAX_IP_ADDR_LEN
-  );
-  wifiManager->addParameter(wifiStaticIPNetmask);
-
-  wifiStaticIPGateway = new WiFiManagerParameter(
-    "gateway",
-    "Default Gateway (optional, only used if static IP)",
-    settings.wifiStaticIPGateway.c_str(),
-    MAX_IP_ADDR_LEN
-  );
-  wifiManager->addParameter(wifiStaticIPGateway);
 
   wifiMode = new WiFiManagerParameter(
     "wifiMode",
@@ -467,18 +435,6 @@ void setup() {
     1
   );
   wifiManager->addParameter(wifiMode);
-
-  // We have a saved static IP, let's try and use it.
-  if (settings.wifiStaticIP.length() > 0) {
-    Serial.printf_P(PSTR("We have a static IP: %s\n"), settings.wifiStaticIP.c_str());
-
-    IPAddress _ip, _subnet, _gw;
-    _ip.fromString(settings.wifiStaticIP);
-    _subnet.fromString(settings.wifiStaticIPNetmask);
-    _gw.fromString(settings.wifiStaticIPGateway);
-
-    wifiManager->setSTAStaticIPConfig(_ip,_gw,_subnet);
-  }
 
   wifiManager->setConfigPortalTimeout(180);
   wifiManager->setConfigPortalTimeoutCallback([]() {
@@ -492,7 +448,7 @@ void setup() {
   if (wifiManager->autoConnect(ssid.c_str(), "milightHub")) {
     // set LED mode for successful operation
     ledStatus->continuous(settings.ledModeOperating);
-    Serial.println(F("Wifi connected succesfully\n"));
+    Serial.println(F("Wifi connected successfully\n"));
 
     // if the config portal was started, make sure to turn off the config AP
     WiFi.mode(WIFI_STA);
@@ -500,33 +456,34 @@ void setup() {
     postConnectSetup();
   }
 
-    vTaskDelay(10 / portTICK_PERIOD_MS);  // Delay to avoid busy loopi
-    initLight();
-    setupMMWave();
-    initCydHardware();
-    setupUi();
+  vTaskDelay(10 / portTICK_PERIOD_MS);  // Delay to avoid busy loop
+  initLight();
+  setupMMWave();
+  initCydHardware();
+  createTimeTask();
+  setupUi();
 
-    delay(1000);
+  delay(1000);
 
-xTaskCreatePinnedToCore(
+  xTaskCreatePinnedToCore(
     milightTask,         // Task function
-    "LoopSensor",       // Name of the task (for debugging)
+    "LoopMilight",       // Name of the task (for debugging)
     6096,                // Stack size (in words)
     NULL,                // Task parameter
-    0,                   // Task priority
+    2,                   // Task priority
     NULL,                // Task handle (optional)
     0                    // Core ID (0 for Core 0, 1 for Core 1)
-);
+  );
 
-xTaskCreatePinnedToCore(
+  xTaskCreatePinnedToCore(
     loopDisplay,         // Task function
     "LoopDisplay",       // Name of the task (for debugging)
     6096,                // Stack size (in words)
     NULL,                // Task parameter
-    0,                   // Task priority
+    1,                   // Task priority
     NULL,                // Task handle (optional)
     0                    // Core ID (0 for Core 0, 1 for Core 1)
-);
+  );
 }
 
 size_t i = 0;

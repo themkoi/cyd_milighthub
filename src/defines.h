@@ -6,6 +6,8 @@
 #include "milightIncludes.h"
 #include "lightControl.h"
 
+#define DISABLE_ALL_LIBRARY_WARNINGS // to get rid of the touch cs missing warning
+
 #define TOUCH_CS 33 // just to get rid of warning
 
 #include <SPI.h>
@@ -58,5 +60,14 @@
 #include "mmWave.h"
 
 void milightTask(void *param);
+
+// Time
+
+#include <TimeLib.h>
+#include <NTPClient.h>
+
+#define TIME_OFFSET_S 3600            // Time offset in seconds, use this as timezones
+
+#include "ntp.h"
 
 #endif

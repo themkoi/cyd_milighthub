@@ -33,13 +33,11 @@
 #include <ESPId.h>
 
 #ifdef ESP8266
-  #include <ESP8266mDNS.h>
   #include <ESP8266SSDP.h>
 #elif ESP32
   #include "ESP32SSDP.h"
   #include <esp_wifi.h>
   #include <SPIFFS.h>
-  #include <ESPmDNS.h>
 #endif
 
 #include <vector>
