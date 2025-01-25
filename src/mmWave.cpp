@@ -48,8 +48,8 @@ uint32_t lastReading = 0;
 static bool previousState = true; // Tracks the previous state
 unsigned long lastStateChange;
 
-#define RESPONSE_TIME 4000
-#define RESPONSE_TIME_WHEN_ACTIVE 30000
+#define RESPONSE_TIME 2000
+#define RESPONSE_TIME_WHEN_ACTIVE 60000 * 2
 
 int responseTime = 5000;
 
