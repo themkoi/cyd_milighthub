@@ -61,6 +61,8 @@
 
 void milightTask(void *param);
 
+#define NATURAL_HUE 190
+
 // Time
 
 #include <TimeLib.h>

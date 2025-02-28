@@ -35,14 +35,17 @@ uint8_t lastSecond = 0;
 
 void updateTimeLabel()
 {
+  if (timeLabel == NULL) return;
+
   if (second() != lastSecond)
   {
-  char timeBuffer[32];
-  snprintf(timeBuffer, sizeof(timeBuffer), "%02d:%02d:%02d", hour(), minute(), second());
-  lv_label_set_text(timeLabel, timeBuffer);
-  lastSecond = second();
+    char timeBuffer[32];
+    snprintf(timeBuffer, sizeof(timeBuffer), "%02d:%02d:%02d", hour(), minute(), second());
+    lv_label_set_text(timeLabel, timeBuffer);
+    lastSecond = second();
   }
 }
+
 
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
@@ -117,6 +120,7 @@ static void slider_released_cb(lv_event_t *e)
 
 void update_slider_from_variable()
 {
+  if (slider == NULL) return;
   state = stateStore->get(myBulbId);
   int currentBrightness = state->getBrightness();
 
@@ -141,6 +145,7 @@ void apply_slider_styles(lv_obj_t *slider)
 
 void update_label_text(lv_obj_t *label, char symbol, int number)
 {
+  if (label == NULL) return;
   char buf[128];
   snprintf(buf, sizeof(buf), "%c: %d", symbol, number);
   lv_label_set_text(label, buf);
@@ -172,6 +177,7 @@ static void mmwave_switch_event_cb(lv_event_t *e)
 // Update switch appearance based on state
 void update_switch_from_variable(lv_obj_t *Switch, bool variable)
 {
+  if (Switch == NULL) return;
   lv_obj_clear_state(Switch, LV_STATE_CHECKED);
   if (variable)
   {
@@ -184,70 +190,115 @@ void apply_switch_styles(lv_obj_t *sw)
   lv_obj_set_style_bg_color(sw, lv_color_hex(0xca9ee6), LV_PART_INDICATOR | LV_STATE_CHECKED);
 }
 
-// Modify the UI setup function to include the switch
 void initUi(lv_obj_t *parent)
 {
-  state = stateStore->get(myBulbId);
-  int currentBrightness = state->getBrightness();
+lv_obj_t *tabView = lv_tabview_create(lv_scr_act());
+lv_obj_set_size(tabView, LV_HOR_RES, LV_VER_RES);
+lv_obj_align(tabView, LV_ALIGN_CENTER, 0, 0);
+lv_tabview_set_tab_bar_size(tabView, 40);
 
-  brightnessLabel = lv_label_create(parent);
-  char buf[32];
-  snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
-  lv_label_set_text(brightnessLabel, buf);
-  lv_obj_set_style_text_color(brightnessLabel, lv_color_white(), 0);
-  lv_obj_align(brightnessLabel, LV_ALIGN_CENTER, 0, -20);
+lv_obj_set_style_bg_color(tabView, lv_color_hex(TFT_BLACK), 0);
+lv_obj_t *tab = lv_tabview_add_tab(tabView, "Main Tab");
+lv_obj_t *othersTab = lv_tabview_add_tab(tabView, "Other Controls");
 
-  slider = lv_slider_create(parent);
-  lv_slider_set_range(slider, 0, 100);
-  lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
-  lv_obj_set_width(slider, 250);
-  lv_obj_align(slider, LV_ALIGN_CENTER, 0, 0);
-  apply_slider_styles(slider);
+lv_obj_t* tab_bar = lv_tabview_get_tab_bar(tabView);
 
-  lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-  lv_obj_add_event_cb(slider, slider_released_cb, LV_EVENT_RELEASED, NULL);
+/******************************* button1 *******************************/
+lv_obj_t* button1 = lv_obj_get_child(tab_bar, 0);
 
-  lightSwitch = lv_switch_create(parent);
-  apply_switch_styles(lightSwitch);
-  lv_obj_align(lightSwitch, LV_ALIGN_BOTTOM_LEFT, 50, -50); // Position in bottom-left corner
-  lv_obj_add_event_cb(lightSwitch, light_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-  lightLabel = lv_label_create(parent);
-  lv_label_set_text(lightLabel, "Light");
-  lv_obj_set_style_text_color(lightLabel, lv_color_white(), 0);
-  lv_obj_set_style_text_align(lightLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
-  lv_obj_align(lightLabel, LV_ALIGN_BOTTOM_LEFT, 56, -30);
+lv_obj_set_style_bg_opa(button1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_bg_color(button1, lv_color_hex(0xca9ee6), LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_border_width(button1, 2, LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_border_side(button1,LV_BORDER_SIDE_LEFT,LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_text_color(button1, lv_color_hex(0x1e1e2e), LV_PART_MAIN | LV_STATE_CHECKED);
 
-  mmwaveSwitch = lv_switch_create(parent);
-  apply_switch_styles(mmwaveSwitch);
-  lv_obj_align(mmwaveSwitch, LV_ALIGN_BOTTOM_RIGHT, -50, -50); // Position in bottom-right corner
-  lv_obj_add_event_cb(mmwaveSwitch, mmwave_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-  mmwaveLabel = lv_label_create(parent);
-  lv_label_set_text(mmwaveLabel, "mmWave");
-  lv_obj_set_style_text_color(mmwaveLabel, lv_color_white(), 0);
-  lv_obj_set_style_text_align(mmwaveLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
-  lv_obj_align(mmwaveLabel, LV_ALIGN_BOTTOM_RIGHT, -41, -30);
+lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_DEFAULT);
+lv_obj_set_style_border_opa(button1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+lv_obj_set_style_border_width(button1, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+lv_obj_set_style_border_side(button1,LV_BORDER_SIDE_LEFT,LV_PART_MAIN | LV_STATE_DEFAULT);
+lv_obj_set_style_text_color(button1, lv_color_black(), LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  char ipBuffer[32];
-  String ipString = WiFi.localIP().toString();
-  snprintf(ipBuffer, sizeof(ipBuffer), "%s", ipString.c_str());
 
-  ipLabel = lv_label_create(parent);
-  lv_label_set_text(ipLabel, ipBuffer);
-  lv_obj_set_style_text_color(ipLabel, lv_color_white(), 0);
-  lv_obj_align(ipLabel, LV_ALIGN_TOP_MID, 0, 10);
+/******************************* button2 *******************************/
+lv_obj_t* button2 = lv_obj_get_child(tab_bar, 1);
+lv_obj_set_style_bg_opa(button2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_bg_color(button2, lv_color_hex(0xca9ee6), LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_border_width(button2, 2, LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_border_side(button2,LV_BORDER_SIDE_LEFT,LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_CHECKED);
+lv_obj_set_style_text_color(button2, lv_color_hex(0x1e1e2e), LV_PART_MAIN | LV_STATE_CHECKED);
 
-  timeLabel = lv_label_create(parent);
-  lv_label_set_text(timeLabel, ipBuffer);
-  lv_obj_set_style_text_color(timeLabel, lv_color_white(), 0);
-  lv_obj_align(timeLabel, LV_ALIGN_TOP_MID, 0, 30);
-  updateTimeLabel();
+lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_DEFAULT);
+lv_obj_set_style_border_opa(button2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+lv_obj_set_style_border_width(button2, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+lv_obj_set_style_border_side(button2,LV_BORDER_SIDE_LEFT,LV_PART_MAIN | LV_STATE_DEFAULT);
+lv_obj_set_style_text_color(button2, lv_color_black(), LV_PART_MAIN | LV_STATE_DEFAULT);
 
-  // Initial state of the switch
-  state = stateStore->get(myBulbId);
-  bool isOn = state->isOn();
-  update_switch_from_variable(lightSwitch, isOn);
+state = stateStore->get(myBulbId);
+int currentBrightness = state->getBrightness();
 
-  update_switch_from_variable(mmwaveSwitch, mmwaveState);
+brightnessLabel = lv_label_create(tab);
+char buf[32];
+snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
+lv_label_set_text(brightnessLabel, buf);
+lv_obj_set_style_text_color(brightnessLabel, lv_color_white(), 0);
+lv_obj_align(brightnessLabel, LV_ALIGN_CENTER, 0, -25);
+
+slider = lv_slider_create(tab);
+lv_slider_set_range(slider, 0, 100);
+lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
+lv_obj_set_width(slider, 250);
+lv_obj_align(slider, LV_ALIGN_CENTER, 0, -5);
+apply_slider_styles(slider);
+
+lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+lv_obj_add_event_cb(slider, slider_released_cb, LV_EVENT_RELEASED, NULL);
+
+lightSwitch = lv_switch_create(tab);
+apply_switch_styles(lightSwitch);
+lv_obj_align(lightSwitch, LV_ALIGN_BOTTOM_LEFT, 50, -30);
+lv_obj_add_event_cb(lightSwitch, light_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+lightLabel = lv_label_create(tab);
+lv_label_set_text(lightLabel, "Light");
+lv_obj_set_style_text_color(lightLabel, lv_color_white(), 0);
+lv_obj_set_style_text_align(lightLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+lv_obj_align(lightLabel, LV_ALIGN_BOTTOM_LEFT, 56, -10);
+
+mmwaveSwitch = lv_switch_create(tab);
+apply_switch_styles(mmwaveSwitch);
+lv_obj_align(mmwaveSwitch, LV_ALIGN_BOTTOM_RIGHT, -50, -30);
+lv_obj_add_event_cb(mmwaveSwitch, mmwave_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+mmwaveLabel = lv_label_create(tab);
+lv_label_set_text(mmwaveLabel, "mmWave");
+lv_obj_set_style_text_color(mmwaveLabel, lv_color_white(), 0);
+lv_obj_set_style_text_align(mmwaveLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+lv_obj_align(mmwaveLabel, LV_ALIGN_BOTTOM_RIGHT, -41, -10);
+
+char ipBuffer[32];
+String ipString = WiFi.localIP().toString();
+snprintf(ipBuffer, sizeof(ipBuffer), "%s", ipString.c_str());
+
+ipLabel = lv_label_create(tab);
+lv_label_set_text(ipLabel, ipBuffer);
+lv_obj_set_style_text_color(ipLabel, lv_color_white(), 0);
+lv_obj_align(ipLabel, LV_ALIGN_TOP_MID, 0, -10);
+
+timeLabel = lv_label_create(tab);
+lv_label_set_text(timeLabel, ipBuffer);
+lv_obj_set_style_text_color(timeLabel, lv_color_white(), 0);
+lv_obj_align(timeLabel, LV_ALIGN_TOP_MID, 0, 7);
+updateTimeLabel();
+
+// Initial state of the switch
+state = stateStore->get(myBulbId);
+bool isOn = state->isOn();
+update_switch_from_variable(lightSwitch, isOn);
+
+update_switch_from_variable(mmwaveSwitch, mmwaveState);
+
 }
 
 // Hardware initialization function

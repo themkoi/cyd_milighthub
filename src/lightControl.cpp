@@ -29,7 +29,6 @@ void turnLightOn()
     state = stateStore->get(myBulbId);
     if (state->isOn() == false)
     {
-        milightClient->prepare(config, deviceId, groupId);
         milightClient->updateStatus(MiLightStatus::ON);
         delay(100);
         milightClient->updateBrightness(brightnessBeforeOff);
@@ -46,7 +45,6 @@ void turnLightOff()
     state = stateStore->get(myBulbId);
     if (state->isOn() == true)
     {
-        milightClient->prepare(config, deviceId, groupId);
         brightnessBeforeOff = state->getBrightness();
         brightness = 0;
         milightClient->updateBrightness(brightness);
@@ -64,7 +62,15 @@ void setBrightness(uint8_t brightness)
 {
     if (state->isOn() == true)
     {
-        milightClient->prepare(config, deviceId, groupId);
         milightClient->updateBrightness(brightness);
+    }
+}
+
+
+void setHue(uint16_t hue)
+{
+    if (state->isOn() == true)
+    {
+        milightClient->updateHue(hue);
     }
 }

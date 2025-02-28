@@ -16,6 +16,7 @@ void initLight();
 void turnLightOff();
 void turnLightOn();
 void setBrightness(uint8_t brightness);
+void setHue(uint16_t hue);
 
 
 #endif

@@ -45,6 +45,7 @@ void setupMMWave()
     if (isDetected == true)
     {
         turnLightOn();
+        setHue(NATURAL_HUE);
     }
 }
 
