@@ -6,7 +6,7 @@ s3km1110 radar;
 
 bool isDetected = true;
 
-void setupMMWave()
+void initRadar()
 {
     mmWaveSerial.begin(115200, SERIAL_8N1, RX_GPIO, TX_GPIO);
     pinMode(MMWAVE_GPIO, INPUT);
@@ -34,7 +34,12 @@ void setupMMWave()
         int16_t targetDistance = radar.distanceToTarget;
         Serial.println(isDetected);
     }
+    delay(500);
+}
 
+void setupMMWave()
+{
+    initRadar();
     milightClient->prepare(config, deviceId, groupId);
 
     if (isDetected == true)
@@ -52,23 +57,47 @@ unsigned long lastStateChange;
 #define RESPONSE_TIME_WHEN_ACTIVE 60000 * 2
 
 int responseTime = 5000;
+int connectionFailCount = 0;
+
+bool readFailed = false;
 
 void loopMMWave()
 {
-    static float total = 0.0;   // Running total of isDetected values
-    static int count = 0;       // Count of readings
-    static float average = 0.0; // Calculated average
-
-    if (radar.isConnected() && millis() - lastStateChange >= responseTime)
+    static float total = 0.0; 
+    static int count = 0;
+    static float average = 0.0; 
+    if (readFailed == true)
     {
+        connectionFailCount++;
+        Serial.printf("Radar connection failed! Attempt %d/15\n", connectionFailCount);
+        if (connectionFailCount > 1)
+        {
+            delay(500);
+        }
+
+        if (connectionFailCount >= 15)
+        {
+            Serial.println("Max failures reached. Reinitializing radar...");
+            initRadar();
+            connectionFailCount = 0;
+        }
+    }
+
+    if (millis() - lastStateChange >= responseTime)
+    {
+        Serial.println("Radar connected");
         lastReading = millis();
+
         while (millis() - lastReading < 500)
         {
             if (radar.read())
             {
+                connectionFailCount = 0;
+                readFailed = false;
                 isDetected = radar.isTargetDetected;
-                Serial.println("Detected :");
-                Serial.println(isDetected);
+                Serial.printf("Detected: %d\n", isDetected);
+            } else {
+                readFailed = true;
             }
         }
     }
@@ -84,10 +113,11 @@ void loopMMWave()
         if (isDetected == true)
         {
             responseTime = RESPONSE_TIME;
-        } else {
+        }
+        else
+        {
             responseTime = RESPONSE_TIME_WHEN_ACTIVE;
         }
-        
     }
     while (millis() - lastStateChange <= responseTime)
     {

@@ -46,22 +46,60 @@ void updateTimeLabel()
 
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
-  if (ts.touched())
+  static unsigned long lastValidTouchTime = 0;
+  static unsigned long lastTouchStartTime = 0;
+  static const unsigned long noiseThreshold = 50;  // Minimum duration (ms) to consider as a valid touch
+  static const unsigned long debounceDelay = 50;   // Debounce time (ms)
+  static bool lastTouchState = false;
+
+  bool isTouched = ts.touched();
+
+  if (isTouched)
   {
-    TS_Point p = ts.getPoint();
-    Serial.print("X: ");
-    Serial.print(p.x);
-    Serial.print(", Y: ");
-    Serial.println(p.y);
-    data->point.x = map(p.x, touchScreenMinimumX, touchScreenMaximumX, 0, TFT_HOR_RES);
-    data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 0, TFT_VER_RES);
-    data->state = LV_INDEV_STATE_PRESSED;
+    unsigned long currentTime = millis();
+
+    // If a new touch is detected
+    if (!lastTouchState)
+    {
+      lastTouchStartTime = currentTime; // Record when the touch started
+      lastTouchState = true;
+    }
+
+    // Check if the touch lasts longer than the noise threshold
+    if (currentTime - lastTouchStartTime >= noiseThreshold)
+    {
+      lastValidTouchTime = currentTime;
+
+      // Read touch coordinates
+      TS_Point p = ts.getPoint();
+      Serial.print("X: ");
+      Serial.print(p.x);
+      Serial.print(", Y: ");
+      Serial.println(p.y);
+      data->point.x = map(p.x, touchScreenMinimumX, touchScreenMaximumX, 0, TFT_HOR_RES);
+      data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 0, TFT_VER_RES);
+      data->state = LV_INDEV_STATE_PRESSED;
+    }
+    else
+    {
+      // If still within the noise threshold, ignore the touch
+      data->state = LV_INDEV_STATE_RELEASED;
+    }
   }
   else
   {
-    data->state = LV_INDEV_STATE_RELEASED;
+    // Handle touch release
+    unsigned long currentTime = millis();
+
+    if (lastTouchState && (currentTime - lastValidTouchTime >= debounceDelay))
+    {
+      lastTouchState = false;
+      data->state = LV_INDEV_STATE_RELEASED;
+    }
   }
 }
+
+
 
 static void slider_event_cb(lv_event_t *e)
 {
@@ -283,6 +321,9 @@ bool backlightActive = false;
 unsigned long touchStartTime = 0;
 bool touchDetected = false;
 
+float smoothedLdrValue = 0; // Variable to store the smoothened LDR value
+const float alpha = 0.1;    // Smoothing factor (adjust for more/less smoothening)
+
 void loopBacklight()
 {
   if (ts.touched())
@@ -314,13 +355,18 @@ void loopBacklight()
   else
   {
     int ldrValue = readLdr();
-    int brightness = map(ldrValue, 400, 0, 0, 150); // Map LDR values to brightness
-    brightness = constrain(brightness, 0, 150);     // Ensure brightness stays within range
+    smoothedLdrValue = (alpha * ldrValue) + ((1 - alpha) * smoothedLdrValue); // Apply EMA
+    int brightness = map(smoothedLdrValue, 400, 0, 0, 150);                  // Map smoothed LDR values to brightness
+    brightness = constrain(brightness, 0, 150);                              // Ensure brightness stays within range
     ledcAnalogWrite(LEDC_CHANNEL_0, brightness);
   }
 }
 
+
 uint32_t lastTick = 0;
+
+unsigned long previousMillis = 0;
+const unsigned long interval = 1000;
 
 void loopDisplay(void *param)
 {
@@ -331,10 +377,14 @@ void loopDisplay(void *param)
     lastTick = millis();
     lv_timer_handler();
     vTaskDelay(10 / portTICK_PERIOD_MS);
-    update_slider_from_variable();
     state = stateStore->get(myBulbId);
     bool isOn = state->isOn();
-    update_switch_from_variable(lightSwitch, isOn);
-    updateTimeLabel();
+    if (millis() - previousMillis >= interval) {
+        previousMillis = millis();
+
+        update_switch_from_variable(lightSwitch, isOn);
+        update_slider_from_variable();
+        updateTimeLabel();
+    }
   }
 }
