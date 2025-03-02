@@ -457,6 +457,7 @@ void setup() {
   }
 
   vTaskDelay(10 / portTICK_PERIOD_MS);  // Delay to avoid busy loop
+  lightMutex =xSemaphoreCreateMutex();
   initLight();
   setupMMWave();
   initCydHardware();
@@ -531,7 +532,13 @@ void milightTask(void *param) {
     handleListen();
 
     stateStore->limitedFlush();
-    packetSender->loop();
+    if (xSemaphoreTake(lightMutex, pdMS_TO_TICKS(500)))
+    {
+      packetSender->loop();
+      releaseMutex();
+    } else {
+      Serial.println("mutex full");
+    }
 
     transitions.loop();
   }

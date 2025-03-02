@@ -13,9 +13,10 @@ uint8_t brightnessBeforeOff = 100;
 // config is a MiLightRemoteConfig. there are constants available. For example, FUT096Config is for rgbw
 const MiLightRemoteConfig *config = &FUT098Config;
 
+SemaphoreHandle_t lightMutex;
+
 void initLight()
 {
-
     milightClient->prepare(config, deviceId, groupId);
     state = stateStore->get(myBulbId);
     milightClient->updateMode(BULB_MODE_COLOR);
@@ -24,8 +25,18 @@ void initLight()
     turnLightOn();
 }
 
+void releaseMutex() {
+    xSemaphoreGive(lightMutex);
+}
+
+void waitForAvailable() {
+    xSemaphoreTake(lightMutex, portMAX_DELAY);
+}
+
+
 void turnLightOn()
 {
+    waitForAvailable();
     state = stateStore->get(myBulbId);
     if (state->isOn() == false)
     {
@@ -38,10 +49,12 @@ void turnLightOn()
         }
         Serial.println("Turned light on");
     }
+    releaseMutex();
 }
 
 void turnLightOff()
 {
+    waitForAvailable();
     state = stateStore->get(myBulbId);
     if (state->isOn() == true)
     {
@@ -55,22 +68,65 @@ void turnLightOff()
         milightClient->updateStatus(MiLightStatus::OFF);
         Serial.println("Turned light off");
     }
+    releaseMutex();
 }
-
 
 void setBrightness(uint8_t brightness)
 {
+    waitForAvailable();
     if (state->isOn() == true)
     {
         milightClient->updateBrightness(brightness);
     }
+    releaseMutex();
 }
-
 
 void setHue(uint16_t hue)
 {
+    waitForAvailable();
     if (state->isOn() == true)
     {
         milightClient->updateHue(hue);
     }
+    releaseMutex();
+}
+
+void nextMode()
+{
+    waitForAvailable();
+    if (state->isOn() == true)
+    {
+        milightClient->nextMode();
+    }
+    releaseMutex();
+}
+
+void previousMode()
+{
+    waitForAvailable();
+    if (state->isOn() == true)
+    {
+        milightClient->previousMode();
+    }
+    releaseMutex();
+}
+
+void speedUp()
+{
+    waitForAvailable();
+    if (state->isOn() == true)
+    {
+        milightClient->modeSpeedUp();
+    }
+    releaseMutex();
+}
+
+void speedDown()
+{
+    waitForAvailable();
+    if (state->isOn() == true)
+    {
+        milightClient->modeSpeedDown();
+    }
+    releaseMutex();
 }

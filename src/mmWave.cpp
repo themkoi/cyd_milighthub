@@ -70,21 +70,20 @@ void loopMMWave()
     if (readFailed == true)
     {
         connectionFailCount++;
-        Serial.printf("Radar connection failed! Attempt %d/15\n", connectionFailCount);
+        Serial.printf("No message Attempt: %d/500\n", connectionFailCount);
         if (connectionFailCount > 1)
         {
-            delay(500);
         }
 
-        if (connectionFailCount >= 15)
+        if (connectionFailCount >= 500)
         {
-            Serial.println("Max failures reached. Reinitializing radar...");
+            Serial.println("Max failures reached. trying to reset the radar...");
             initRadar();
             connectionFailCount = 0;
         }
     }
 
-    if (millis() - lastStateChange >= responseTime)
+    if (radar.isConnected() && millis() - lastStateChange >= responseTime)
     {
         Serial.println("Radar connected");
         lastReading = millis();

@@ -2,6 +2,7 @@
 #define DEFINES_H
 
 #include <Arduino.h>
+#define DEBUG_PRINTF
 
 #include "milightIncludes.h"
 #include "lightControl.h"
@@ -61,7 +62,7 @@
 
 void milightTask(void *param);
 
-#define NATURAL_HUE 190
+#define NATURAL_HUE 200
 
 // Time
 

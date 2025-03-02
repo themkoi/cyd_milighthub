@@ -35,7 +35,8 @@ uint8_t lastSecond = 0;
 
 void updateTimeLabel()
 {
-  if (timeLabel == NULL) return;
+  if (timeLabel == NULL)
+    return;
 
   if (second() != lastSecond)
   {
@@ -46,13 +47,12 @@ void updateTimeLabel()
   }
 }
 
-
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
   static unsigned long lastValidTouchTime = 0;
   static unsigned long lastTouchStartTime = 0;
-  static const unsigned long noiseThreshold = 50;  // Minimum duration (ms) to consider as a valid touch
-  static const unsigned long debounceDelay = 50;   // Debounce time (ms)
+  static const unsigned long noiseThreshold = 50; // Minimum duration (ms) to consider as a valid touch
+  static const unsigned long debounceDelay = 50;  // Debounce time (ms)
   static bool lastTouchState = false;
 
   bool isTouched = ts.touched();
@@ -102,8 +102,6 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
   }
 }
 
-
-
 static void slider_event_cb(lv_event_t *e)
 {
   lv_obj_t *slider = (lv_obj_t *)lv_event_get_target(e);
@@ -120,7 +118,8 @@ static void slider_released_cb(lv_event_t *e)
 
 void update_slider_from_variable()
 {
-  if (slider == NULL) return;
+  if (slider == NULL)
+    return;
   state = stateStore->get(myBulbId);
   int currentBrightness = state->getBrightness();
 
@@ -145,7 +144,8 @@ void apply_slider_styles(lv_obj_t *slider)
 
 void update_label_text(lv_obj_t *label, char symbol, int number)
 {
-  if (label == NULL) return;
+  if (label == NULL)
+    return;
   char buf[128];
   snprintf(buf, sizeof(buf), "%c: %d", symbol, number);
   lv_label_set_text(label, buf);
@@ -159,11 +159,15 @@ static void light_switch_event_cb(lv_event_t *e)
   Serial.println("Switch toggled: " + String(lightSwitchState));
   if (lightSwitchState)
   {
+    waitForAvailable();
     milightClient->updateStatus(MiLightStatus::ON);
+    releaseMutex();
   }
   else
   {
+    waitForAvailable();
     milightClient->updateStatus(MiLightStatus::OFF);
+    releaseMutex();
   }
 }
 
@@ -177,12 +181,43 @@ static void mmwave_switch_event_cb(lv_event_t *e)
 // Update switch appearance based on state
 void update_switch_from_variable(lv_obj_t *Switch, bool variable)
 {
-  if (Switch == NULL) return;
+  if (Switch == NULL)
+    return;
   lv_obj_clear_state(Switch, LV_STATE_CHECKED);
   if (variable)
   {
     lv_obj_add_state(Switch, LV_STATE_CHECKED);
   }
+}
+
+static void scene_minus_btn_event_cb(lv_event_t *e)
+{
+  Serial.println("Minus Button Clicked");
+  previousMode();
+}
+
+static void scene_plus_btn_event_cb(lv_event_t *e)
+{
+  Serial.println("Plus Button Clicked");
+  nextMode();
+}
+
+static void speed_minus_btn_event_cb(lv_event_t *e)
+{
+  Serial.println("Minus Button Clicked");
+  speedDown();
+}
+
+static void speed_plus_btn_event_cb(lv_event_t *e)
+{
+  Serial.println("Plus Button Clicked");
+  speedUp();
+}
+
+static void color_btn_event_cb(lv_event_t *e)
+{
+  Serial.println("Plus Button Clicked");
+  setHue(NATURAL_HUE);
 }
 
 void apply_switch_styles(lv_obj_t *sw)
@@ -192,113 +227,218 @@ void apply_switch_styles(lv_obj_t *sw)
 
 void initUi(lv_obj_t *parent)
 {
-lv_obj_t *tabView = lv_tabview_create(lv_scr_act());
-lv_obj_set_size(tabView, LV_HOR_RES, LV_VER_RES);
-lv_obj_align(tabView, LV_ALIGN_CENTER, 0, 0);
-lv_tabview_set_tab_bar_size(tabView, 40);
+  lv_obj_t *tabView = lv_tabview_create(lv_scr_act());
+  lv_obj_set_size(tabView, LV_HOR_RES, LV_VER_RES);
+  lv_obj_align(tabView, LV_ALIGN_CENTER, 0, 0);
+  lv_tabview_set_tab_bar_size(tabView, 40);
 
-lv_obj_set_style_bg_color(tabView, lv_color_hex(TFT_BLACK), 0);
-lv_obj_t *tab = lv_tabview_add_tab(tabView, "Main Tab");
-lv_obj_t *othersTab = lv_tabview_add_tab(tabView, "Other Controls");
+  lv_obj_set_style_bg_color(tabView, lv_color_hex(TFT_BLACK), 0);
+  lv_obj_t *tab = lv_tabview_add_tab(tabView, "Main Tab");
+  lv_obj_t *othersTab = lv_tabview_add_tab(tabView, "Other Controls");
 
-lv_obj_t* tab_bar = lv_tabview_get_tab_bar(tabView);
+  lv_obj_t *content = lv_tabview_get_content(tabView);
+  lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
 
-/******************************* button1 *******************************/
-lv_obj_t* button1 = lv_obj_get_child(tab_bar, 0);
+  lv_obj_t *tab_bar = lv_tabview_get_tab_bar(tabView);
 
-lv_obj_set_style_bg_opa(button1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_bg_color(button1, lv_color_hex(0xca9ee6), LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_border_width(button1, 2, LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_border_side(button1,LV_BORDER_SIDE_LEFT,LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_text_color(button1, lv_color_hex(0x1e1e2e), LV_PART_MAIN | LV_STATE_CHECKED);
+  /******************************* button1 *******************************/
+  lv_obj_t *button1 = lv_obj_get_child(tab_bar, 0);
 
-lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_DEFAULT);
-lv_obj_set_style_border_opa(button1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
-lv_obj_set_style_border_width(button1, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-lv_obj_set_style_border_side(button1,LV_BORDER_SIDE_LEFT,LV_PART_MAIN | LV_STATE_DEFAULT);
-lv_obj_set_style_text_color(button1, lv_color_black(), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_bg_opa(button1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_bg_color(button1, lv_color_hex(0xca9ee6), LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_border_width(button1, 2, LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_border_side(button1, LV_BORDER_SIDE_LEFT, LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_text_color(button1, lv_color_hex(0x1e1e2e), LV_PART_MAIN | LV_STATE_CHECKED);
 
+  lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_opa(button1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_width(button1, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_side(button1, LV_BORDER_SIDE_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_text_color(button1, lv_color_black(), LV_PART_MAIN | LV_STATE_DEFAULT);
 
-/******************************* button2 *******************************/
-lv_obj_t* button2 = lv_obj_get_child(tab_bar, 1);
-lv_obj_set_style_bg_opa(button2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_bg_color(button2, lv_color_hex(0xca9ee6), LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_border_width(button2, 2, LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_border_side(button2,LV_BORDER_SIDE_LEFT,LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_CHECKED);
-lv_obj_set_style_text_color(button2, lv_color_hex(0x1e1e2e), LV_PART_MAIN | LV_STATE_CHECKED);
+  /******************************* button2 *******************************/
+  lv_obj_t *button2 = lv_obj_get_child(tab_bar, 1);
+  lv_obj_set_style_bg_opa(button2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_bg_color(button2, lv_color_hex(0xca9ee6), LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_border_width(button2, 2, LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_border_side(button2, LV_BORDER_SIDE_LEFT, LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_text_color(button2, lv_color_hex(0x1e1e2e), LV_PART_MAIN | LV_STATE_CHECKED);
 
-lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_DEFAULT);
-lv_obj_set_style_border_opa(button2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
-lv_obj_set_style_border_width(button2, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-lv_obj_set_style_border_side(button2,LV_BORDER_SIDE_LEFT,LV_PART_MAIN | LV_STATE_DEFAULT);
-lv_obj_set_style_text_color(button2, lv_color_black(), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_opa(button2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_width(button2, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_side(button2, LV_BORDER_SIDE_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_text_color(button2, lv_color_black(), LV_PART_MAIN | LV_STATE_DEFAULT);
 
-state = stateStore->get(myBulbId);
-int currentBrightness = state->getBrightness();
+  state = stateStore->get(myBulbId);
+  int currentBrightness = state->getBrightness();
 
-brightnessLabel = lv_label_create(tab);
-char buf[32];
-snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
-lv_label_set_text(brightnessLabel, buf);
-lv_obj_set_style_text_color(brightnessLabel, lv_color_white(), 0);
-lv_obj_align(brightnessLabel, LV_ALIGN_CENTER, 0, -25);
+  slider = lv_slider_create(tab);
+  lv_slider_set_range(slider, 0, 100);
+  lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
+  lv_obj_set_width(slider, 250);
+  lv_obj_align(slider, LV_ALIGN_CENTER, 0, -5);
+  apply_slider_styles(slider);
 
-slider = lv_slider_create(tab);
-lv_slider_set_range(slider, 0, 100);
-lv_slider_set_value(slider, currentBrightness, LV_ANIM_ON);
-lv_obj_set_width(slider, 250);
-lv_obj_align(slider, LV_ALIGN_CENTER, 0, -5);
-apply_slider_styles(slider);
+  lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  lv_obj_add_event_cb(slider, slider_released_cb, LV_EVENT_RELEASED, NULL);
 
-lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-lv_obj_add_event_cb(slider, slider_released_cb, LV_EVENT_RELEASED, NULL);
+  brightnessLabel = lv_label_create(tab);
+  char buf[32];
+  snprintf(buf, sizeof(buf), "Brightness: %d", currentBrightness);
+  lv_label_set_text(brightnessLabel, buf);
+  lv_obj_set_style_text_color(brightnessLabel, lv_color_white(), 0);
+  lv_obj_align_to(brightnessLabel, slider, LV_ALIGN_CENTER, 0, -20);
 
-lightSwitch = lv_switch_create(tab);
-apply_switch_styles(lightSwitch);
-lv_obj_align(lightSwitch, LV_ALIGN_BOTTOM_LEFT, 50, -30);
-lv_obj_add_event_cb(lightSwitch, light_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  lightSwitch = lv_switch_create(tab);
+  apply_switch_styles(lightSwitch);
+  lv_obj_align(lightSwitch, LV_ALIGN_BOTTOM_LEFT, 50, -30);
+  lv_obj_add_event_cb(lightSwitch, light_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
-lightLabel = lv_label_create(tab);
-lv_label_set_text(lightLabel, "Light");
-lv_obj_set_style_text_color(lightLabel, lv_color_white(), 0);
-lv_obj_set_style_text_align(lightLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
-lv_obj_align(lightLabel, LV_ALIGN_BOTTOM_LEFT, 56, -10);
+  lightLabel = lv_label_create(tab);
+  lv_label_set_text(lightLabel, "Light");
+  lv_obj_set_style_text_color(lightLabel, lv_color_white(), 0);
+  lv_obj_set_style_text_align(lightLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+  lv_obj_align_to(lightLabel, lightSwitch, LV_ALIGN_BOTTOM_MID, 0, 20);
 
-mmwaveSwitch = lv_switch_create(tab);
-apply_switch_styles(mmwaveSwitch);
-lv_obj_align(mmwaveSwitch, LV_ALIGN_BOTTOM_RIGHT, -50, -30);
-lv_obj_add_event_cb(mmwaveSwitch, mmwave_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+  mmwaveSwitch = lv_switch_create(tab);
+  apply_switch_styles(mmwaveSwitch);
+  lv_obj_align(mmwaveSwitch, LV_ALIGN_BOTTOM_RIGHT, -50, -30);
+  lv_obj_add_event_cb(mmwaveSwitch, mmwave_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
-mmwaveLabel = lv_label_create(tab);
-lv_label_set_text(mmwaveLabel, "mmWave");
-lv_obj_set_style_text_color(mmwaveLabel, lv_color_white(), 0);
-lv_obj_set_style_text_align(mmwaveLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
-lv_obj_align(mmwaveLabel, LV_ALIGN_BOTTOM_RIGHT, -41, -10);
+  mmwaveLabel = lv_label_create(tab);
+  lv_label_set_text(mmwaveLabel, "mmWave");
+  lv_obj_set_style_text_color(mmwaveLabel, lv_color_white(), 0);
+  lv_obj_set_style_text_align(mmwaveLabel, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+  lv_obj_align_to(mmwaveLabel, mmwaveSwitch, LV_ALIGN_BOTTOM_MID, 0, 20);
 
-char ipBuffer[32];
-String ipString = WiFi.localIP().toString();
-snprintf(ipBuffer, sizeof(ipBuffer), "%s", ipString.c_str());
+  char ipBuffer[32];
+  String ipString = WiFi.localIP().toString();
+  snprintf(ipBuffer, sizeof(ipBuffer), "%s", ipString.c_str());
 
-ipLabel = lv_label_create(tab);
-lv_label_set_text(ipLabel, ipBuffer);
-lv_obj_set_style_text_color(ipLabel, lv_color_white(), 0);
-lv_obj_align(ipLabel, LV_ALIGN_TOP_MID, 0, -10);
+  ipLabel = lv_label_create(parent);
+  lv_label_set_text(ipLabel, ipBuffer);
+  lv_obj_set_style_text_color(ipLabel, lv_color_white(), 0);
+  lv_obj_align(ipLabel, LV_ALIGN_TOP_MID, 0, 44);
 
-timeLabel = lv_label_create(tab);
-lv_label_set_text(timeLabel, ipBuffer);
-lv_obj_set_style_text_color(timeLabel, lv_color_white(), 0);
-lv_obj_align(timeLabel, LV_ALIGN_TOP_MID, 0, 7);
-updateTimeLabel();
+  timeLabel = lv_label_create(parent);
+  lv_label_set_text(timeLabel, ipBuffer);
+  lv_obj_set_style_text_color(timeLabel, lv_color_white(), 0);
+  lv_obj_align(timeLabel, LV_ALIGN_TOP_MID, 0, 54 + 7);
+  updateTimeLabel();
 
-// Initial state of the switch
-state = stateStore->get(myBulbId);
-bool isOn = state->isOn();
-update_switch_from_variable(lightSwitch, isOn);
+  // Parent container to hold everything
+  lv_obj_t *sceneBack = lv_obj_create(othersTab);
+  lv_obj_set_size(sceneBack, 135, 40);
+  lv_obj_align(sceneBack, LV_ALIGN_BOTTOM_LEFT, 5, -20);
+  lv_obj_set_style_bg_color(sceneBack, lv_color_hex(TFT_BLACK), LV_PART_MAIN); // Dark background
+  lv_obj_set_style_border_width(sceneBack, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(sceneBack, 0, LV_PART_MAIN); // Remove extra padding
 
-update_switch_from_variable(mmwaveSwitch, mmwaveState);
+  // Minus button (-)
+  lv_obj_t *btn_minus_scene = lv_btn_create(sceneBack);
+  lv_obj_set_size(btn_minus_scene, 35, 30); // Rectangular size
+  lv_obj_align(btn_minus_scene, LV_ALIGN_RIGHT_MID, -5, 0);
+  lv_obj_set_style_bg_color(btn_minus_scene, lv_color_hex(0xCA9EE6), LV_PART_MAIN);
+  lv_obj_set_style_radius(btn_minus_scene, 20, LV_PART_MAIN); // Round only left side
+  lv_obj_set_style_pad_all(btn_minus_scene, 0, LV_PART_MAIN);
 
+  lv_obj_t *label_minus_scene = lv_label_create(btn_minus_scene);
+  lv_label_set_text(label_minus_scene, "-");
+  lv_obj_set_style_text_color(label_minus_scene, lv_color_hex(0x1e1e2e), LV_PART_MAIN);
+  lv_obj_center(label_minus_scene);
+
+  lv_obj_add_event_cb(btn_minus_scene, scene_minus_btn_event_cb, LV_EVENT_CLICKED, NULL);
+
+  // Scene Label (Centered text)
+  lv_obj_t *label_scene = lv_label_create(sceneBack);
+  lv_label_set_text(label_scene, "Scene");
+  lv_obj_align(label_scene, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_style_text_color(label_scene, lv_color_hex(0xFFFFFF), LV_PART_MAIN); // White text
+
+  // Plus button (+)
+  lv_obj_t *btn_plus_scene = lv_btn_create(sceneBack);
+  lv_obj_set_size(btn_plus_scene, 35, 30); // Rectangular size
+  lv_obj_align(btn_plus_scene, LV_ALIGN_LEFT_MID, 5, 0);
+  lv_obj_set_style_bg_color(btn_plus_scene, lv_color_hex(0xCA9EE6), LV_PART_MAIN);
+  lv_obj_set_style_radius(btn_plus_scene, 20, LV_PART_MAIN); // Round only right side
+  lv_obj_set_style_pad_all(btn_plus_scene, 0, LV_PART_MAIN);
+
+  lv_obj_t *label_plus_scene = lv_label_create(btn_plus_scene);
+  lv_label_set_text(label_plus_scene, "+");
+  lv_obj_set_style_text_color(label_plus_scene, lv_color_hex(0x1e1e2e), LV_PART_MAIN);
+  lv_obj_center(label_plus_scene);
+
+  lv_obj_add_event_cb(btn_plus_scene, scene_plus_btn_event_cb, LV_EVENT_CLICKED, NULL);
+
+  // Parent container to hold everything
+  lv_obj_t *speedBack = lv_obj_create(othersTab);
+  lv_obj_set_size(speedBack, 135, 40);
+  lv_obj_align(speedBack, LV_ALIGN_BOTTOM_RIGHT, -5, -20);
+  lv_obj_set_style_bg_color(speedBack, lv_color_hex(TFT_BLACK), LV_PART_MAIN); // Dark background
+  lv_obj_set_style_border_width(speedBack, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(speedBack, 0, LV_PART_MAIN); // Remove extra padding
+
+  // Minus button (-)
+  lv_obj_t *btn_minus_speed = lv_btn_create(speedBack);
+  lv_obj_set_size(btn_minus_speed, 35, 30); // Rectangular size
+  lv_obj_align(btn_minus_speed, LV_ALIGN_RIGHT_MID, -5, 0);
+  lv_obj_set_style_bg_color(btn_minus_speed, lv_color_hex(0xCA9EE6), LV_PART_MAIN);
+  lv_obj_set_style_radius(btn_minus_speed, 20, LV_PART_MAIN); // Round only left side
+  lv_obj_set_style_pad_all(btn_minus_speed, 0, LV_PART_MAIN);
+
+  lv_obj_t *label_minus_speed = lv_label_create(btn_minus_speed);
+  lv_label_set_text(label_minus_speed, "-");
+  lv_obj_set_style_text_color(label_minus_speed, lv_color_hex(0x1e1e2e), LV_PART_MAIN);
+
+  lv_obj_center(label_minus_speed);
+
+  lv_obj_add_event_cb(btn_minus_speed, speed_minus_btn_event_cb, LV_EVENT_CLICKED, NULL);
+
+  // speed Label (Centered text)
+  lv_obj_t *label_speed = lv_label_create(speedBack);
+  lv_label_set_text(label_speed, "speed");
+  lv_obj_align(label_speed, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_style_text_color(label_speed, lv_color_hex(0xFFFFFF), LV_PART_MAIN); // White text
+
+  // Plus button (+)
+  lv_obj_t *btn_plus_speed = lv_btn_create(speedBack);
+  lv_obj_set_size(btn_plus_speed, 35, 30); // Rectangular size
+  lv_obj_align(btn_plus_speed, LV_ALIGN_LEFT_MID, 5, 0);
+  lv_obj_set_style_bg_color(btn_plus_speed, lv_color_hex(0xCA9EE6), LV_PART_MAIN);
+  lv_obj_set_style_radius(btn_plus_speed, 20, LV_PART_MAIN); // Round only right side
+  lv_obj_set_style_pad_all(btn_plus_speed, 0, LV_PART_MAIN);
+
+  lv_obj_t *label_plus_speed = lv_label_create(btn_plus_speed);
+  lv_label_set_text(label_plus_speed, "+");
+  lv_obj_set_style_text_color(label_plus_speed, lv_color_hex(0x1e1e2e), LV_PART_MAIN);
+  lv_obj_center(label_plus_speed);
+
+  lv_obj_add_event_cb(btn_plus_speed, speed_plus_btn_event_cb, LV_EVENT_CLICKED, NULL);
+
+  // Minus button (-)
+  lv_obj_t *color_button = lv_btn_create(othersTab);
+  lv_obj_set_size(color_button, 100, 35); // Rectangular size
+  lv_obj_align(color_button, LV_ALIGN_CENTER, 0, -15);
+  lv_obj_set_style_bg_color(color_button, lv_color_hex(0xCA9EE6), LV_PART_MAIN);
+  lv_obj_set_style_radius(color_button, 20, LV_PART_MAIN); // Round only left side
+  lv_obj_set_style_pad_all(color_button, 0, LV_PART_MAIN);
+
+  lv_obj_t *label_color = lv_label_create(color_button);
+  lv_label_set_text(label_color, "def color");
+  lv_obj_set_style_text_color(label_color, lv_color_hex(0x1e1e2e), LV_PART_MAIN);
+  lv_obj_center(label_color);
+
+  lv_obj_add_event_cb(color_button, color_btn_event_cb, LV_EVENT_CLICKED, NULL);
+
+  // Initial state of the switch
+  state = stateStore->get(myBulbId);
+  bool isOn = state->isOn();
+  update_switch_from_variable(lightSwitch, isOn);
+
+  update_switch_from_variable(mmwaveSwitch, mmwaveState);
 }
 
 // Hardware initialization function
@@ -407,12 +547,11 @@ void loopBacklight()
   {
     int ldrValue = readLdr();
     smoothedLdrValue = (alpha * ldrValue) + ((1 - alpha) * smoothedLdrValue); // Apply EMA
-    int brightness = map(smoothedLdrValue, 400, 0, 0, 150);                  // Map smoothed LDR values to brightness
-    brightness = constrain(brightness, 0, 150);                              // Ensure brightness stays within range
+    int brightness = map(smoothedLdrValue, 400, 0, 0, 150);                   // Map smoothed LDR values to brightness
+    brightness = constrain(brightness, 0, 150);                               // Ensure brightness stays within range
     ledcAnalogWrite(LEDC_CHANNEL_0, brightness);
   }
 }
-
 
 uint32_t lastTick = 0;
 
@@ -430,12 +569,13 @@ void loopDisplay(void *param)
     vTaskDelay(10 / portTICK_PERIOD_MS);
     state = stateStore->get(myBulbId);
     bool isOn = state->isOn();
-    if (millis() - previousMillis >= interval) {
-        previousMillis = millis();
+    if (millis() - previousMillis >= interval)
+    {
+      previousMillis = millis();
 
-        update_switch_from_variable(lightSwitch, isOn);
-        update_slider_from_variable();
-        updateTimeLabel();
+      update_switch_from_variable(lightSwitch, isOn);
+      update_slider_from_variable();
+      updateTimeLabel();
     }
   }
 }
