@@ -17,7 +17,7 @@ void initRadar()
     radar.setRadarConfigurationMinimumGates(0);
     radar.setRadarConfigurationDelay(5);
     radar.setRadarConfigurationActiveFrameNum(5);
-    radar.setRadarConfigurationInactiveFrameNum(20);
+    radar.setRadarConfigurationInactiveFrameNum(10);
 
     if (isRadarEnabled && radar.readAllRadarConfigs())
     {
