@@ -47,14 +47,13 @@ void updateTimeLabel()
   }
 }
 
-static unsigned long lastValidTouchTime = 0;
-static unsigned long lastTouchStartTime = 0;
-static bool lastTouchState = false;
-
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
-  static const unsigned long noiseThreshold = 100; // Minimum duration (ms) to consider as a valid touch
-  static const unsigned long debounceDelay = 100;  // Debounce time (ms)
+  static unsigned long lastValidTouchTime = 0;
+  static unsigned long lastTouchStartTime = 0;
+  static const unsigned long noiseThreshold = 50; // Minimum duration (ms) to consider as a valid touch
+  static const unsigned long debounceDelay = 50;  // Debounce time (ms)
+  static bool lastTouchState = false;
 
   bool isTouched = ts.touched();
 
@@ -472,7 +471,9 @@ void initCydHardware()
   pinMode(LDR_PIN, INPUT);
 
   // Start the tft display and set it to black
-  tft.init(3);
+  tft.init();
+  tft.initDMA();
+  tft.setRotation(1);   /* Landscape orientation */
 
   // Clear the screen before writing to it
   tft.fillScreen(TFT_BLACK);
@@ -490,15 +491,73 @@ int readLdr()
 }
 
 // LVGL setup
+lv_display_t *disp;
+
+void lvgl_tick_task(void *param);
+void lvgl_handler_task(void *param);
+
+void my_log_cb(lv_log_level_t level, const char *buf)
+{
+  // Simply send the log message via serial
+  Serial.print(level);
+  Serial.println(buf); // Use Serial.println for output
+}
+
+typedef struct {
+  TFT_eSPI * tft;
+} lv_tft_espi_t;
+
+static void displayFlush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map)
+{
+    lv_tft_espi_t * dsc = (lv_tft_espi_t *)lv_display_get_driver_data(disp);
+
+    uint32_t w = (area->x2 - area->x1 + 1);
+    uint32_t h = (area->y2 - area->y1 + 1);
+
+    tft.startWrite();
+    tft.setAddrWindow(area->x1, area->y1, w, h);
+    tft.pushColors((uint16_t *)px_map, w * h, true);
+    tft.endWrite();
+
+    lv_display_flush_ready(disp);
+
+}
+
+lv_display_t *lv_tft_create(uint32_t hor_res, uint32_t ver_res, void *buf, uint32_t buf_size_bytes)
+{
+  lv_tft_espi_t *dsc = (lv_tft_espi_t *)lv_malloc_zeroed(sizeof(lv_tft_espi_t));
+  LV_ASSERT_MALLOC(dsc);
+  if (dsc == NULL)
+    return NULL;
+
+  lv_display_t *disp = lv_display_create(hor_res, ver_res);
+  if (disp == NULL)
+  {
+    lv_free(dsc);
+    return NULL;
+  }
+  lv_display_set_driver_data(disp, (void *)dsc);
+  lv_display_set_flush_cb(disp, displayFlush);
+  lv_display_set_buffers(disp, (void *)buf, NULL, buf_size_bytes, LV_DISPLAY_RENDER_MODE_PARTIAL);
+  return disp;
+}
+
+// LVGL setup
 void setupUi()
 {
   lv_init();
   uint8_t *draw_buf = new uint8_t[DRAW_BUF_SIZE];
-  lv_display_t *disp = lv_tft_espi_create(TFT_HOR_RES, TFT_VER_RES, draw_buf, DRAW_BUF_SIZE);
+  disp = lv_tft_create(TFT_HOR_RES, TFT_VER_RES, draw_buf, DRAW_BUF_SIZE);
+  tft.init();
+  tft.initDMA();
+
+  // Clear the screen before writing to it
+  tft.fillScreen(TFT_BLACK);
   lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_90);
 
   lv_obj_t *scr = lv_scr_act();
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
+  lv_screen_load(scr); // optional, if scr isn't active already
 
   lv_indev_t *indev = lv_indev_create();
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);

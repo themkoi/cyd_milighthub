@@ -469,7 +469,7 @@ void setup() {
   xTaskCreatePinnedToCore(
     milightTask,         // Task function
     "LoopMilight",       // Name of the task (for debugging)
-    6096,                // Stack size (in words)
+    4096,                // Stack size (in words)
     NULL,                // Task parameter
     2,                   // Task priority
     NULL,                // Task handle (optional)
@@ -495,39 +495,15 @@ void loop() {
   loopMMWave();
   }
   loopBacklight();
+  delay(5);
 }
 
 void milightTask(void *param) {
 
   for(;;){
-    // update LED with status
-  ledStatus->handle();
-
-  if (shouldRestart()) {
-    Serial.println(F("Auto-restart triggered. Restarting..."));
-    ESP.restart();
-  }
-
-  if (wifiManager) {
-    wifiManager->process();
-  }
-
   if (WiFi.getMode() == WIFI_STA && WiFi.isConnected()) {
-    postConnectSetup();
 
     httpServer->handleClient();
-    if (mqttClient) {
-      mqttClient->handleClient();
-      bulbStateUpdater->loop();
-    }
-
-    for (auto & udpServer : udpServers) {
-      udpServer->handleClient();
-    }
-
-    if (discoveryServer) {
-      discoveryServer->handleClient();
-    }
 
     handleListen();
 
