@@ -47,15 +47,16 @@ void updateTimeLabel()
   }
 }
 
+static unsigned long lastValidTouchTime = 0;
+static unsigned long lastTouchStartTime = 0;
+static const unsigned long noiseThreshold = 50; // Minimum duration (ms) to consider as a valid touch
+static const unsigned long debounceDelay = 50;  // Debounce time (ms)
+static bool lastTouchState = false;
+
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
-  static unsigned long lastValidTouchTime = 0;
-  static unsigned long lastTouchStartTime = 0;
-  static const unsigned long noiseThreshold = 50; // Minimum duration (ms) to consider as a valid touch
-  static const unsigned long debounceDelay = 50;  // Debounce time (ms)
-  static bool lastTouchState = false;
 
-  bool isTouched = ts.touched();
+  isTouched = ts.touched();
 
   if (isTouched)
   {
