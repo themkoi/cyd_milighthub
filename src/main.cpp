@@ -464,12 +464,10 @@ void setup() {
   createTimeTask();
   setupUi();
 
-  delay(1000);
-
   xTaskCreatePinnedToCore(
     milightTask,         // Task function
     "LoopMilight",       // Name of the task (for debugging)
-    4096,                // Stack size (in words)
+    6096,                // Stack size (in words)
     NULL,                // Task parameter
     2,                   // Task priority
     NULL,                // Task handle (optional)

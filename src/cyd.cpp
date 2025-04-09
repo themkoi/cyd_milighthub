@@ -56,9 +56,9 @@ static bool lastTouchState = false;
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
 
-  isTouched = ts.touched();
+  bool touched = ts.touched();
 
-  if (isTouched)
+  if (touched)
   {
     unsigned long currentTime = millis();
 
@@ -82,11 +82,13 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
       Serial.println(p.y);
       data->point.x = map(p.x, touchScreenMinimumX, touchScreenMaximumX, 0, TFT_HOR_RES);
       data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 0, TFT_VER_RES);
+      isTouched = true;
       data->state = LV_INDEV_STATE_PRESSED;
     }
     else
     {
       // If still within the noise threshold, ignore the touch
+      isTouched = false;
       data->state = LV_INDEV_STATE_RELEASED;
     }
   }
@@ -98,6 +100,7 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
     if (lastTouchState && (currentTime - lastValidTouchTime >= debounceDelay))
     {
       lastTouchState = false;
+      isTouched = false;
       data->state = LV_INDEV_STATE_RELEASED;
     }
   }
@@ -623,7 +626,6 @@ void loopDisplay(void *param)
 {
   for (;;)
   {
-    isTouched = ts.touched();
     lv_tick_inc(millis() - lastTick);
     lastTick = millis();
     lv_timer_handler();

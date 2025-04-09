@@ -22,7 +22,6 @@ void initLight()
     milightClient->updateMode(BULB_MODE_COLOR);
     brightness = state->getBrightness();
     brightnessBeforeOff = state->getBrightness();
-    turnLightOn();
 }
 
 void releaseMutex() {
@@ -31,6 +30,7 @@ void releaseMutex() {
 
 void waitForAvailable() {
     xSemaphoreTake(lightMutex, portMAX_DELAY);
+    delay(500);
 }
 
 
