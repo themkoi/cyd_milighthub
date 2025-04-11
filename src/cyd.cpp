@@ -55,46 +55,51 @@ static bool lastTouchState = false;
 
 void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
-
   bool touched = ts.touched();
 
   if (touched)
   {
     unsigned long currentTime = millis();
 
-    // If a new touch is detected
     if (!lastTouchState)
     {
-      lastTouchStartTime = currentTime; // Record when the touch started
+      lastTouchStartTime = currentTime;
       lastTouchState = true;
     }
 
-    // Check if the touch lasts longer than the noise threshold
     if (currentTime - lastTouchStartTime >= noiseThreshold)
     {
       lastValidTouchTime = currentTime;
 
-      // Read touch coordinates
       TS_Point p = ts.getPoint();
       Serial.print("X: ");
       Serial.print(p.x);
       Serial.print(", Y: ");
       Serial.println(p.y);
-      data->point.x = map(p.x, touchScreenMinimumX, touchScreenMaximumX, 0, TFT_HOR_RES);
-      data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 0, TFT_VER_RES);
-      isTouched = true;
-      data->state = LV_INDEV_STATE_PRESSED;
+
+      if (p.x >= touchScreenMinimumX && p.x <= touchScreenMaximumX &&
+          p.y >= touchScreenMinimumY && p.y <= touchScreenMaximumY)
+      {
+        data->point.x = map(p.x, touchScreenMinimumX, touchScreenMaximumX, 0, TFT_HOR_RES);
+        data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 0, TFT_VER_RES);
+        isTouched = true;
+        data->state = LV_INDEV_STATE_PRESSED;
+        delay(500);
+      }
+      else
+      {
+        isTouched = false;
+        data->state = LV_INDEV_STATE_RELEASED;
+      }
     }
     else
     {
-      // If still within the noise threshold, ignore the touch
       isTouched = false;
       data->state = LV_INDEV_STATE_RELEASED;
     }
   }
   else
   {
-    // Handle touch release
     unsigned long currentTime = millis();
 
     if (lastTouchState && (currentTime - lastValidTouchTime >= debounceDelay))
@@ -477,7 +482,7 @@ void initCydHardware()
   // Start the tft display and set it to black
   tft.init();
   tft.initDMA();
-  tft.setRotation(1);   /* Landscape orientation */
+  tft.setRotation(1); /* Landscape orientation */
 
   // Clear the screen before writing to it
   tft.fillScreen(TFT_BLACK);
@@ -507,24 +512,24 @@ void my_log_cb(lv_log_level_t level, const char *buf)
   Serial.println(buf); // Use Serial.println for output
 }
 
-typedef struct {
-  TFT_eSPI * tft;
+typedef struct
+{
+  TFT_eSPI *tft;
 } lv_tft_espi_t;
 
-static void displayFlush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map)
+static void displayFlush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
-    lv_tft_espi_t * dsc = (lv_tft_espi_t *)lv_display_get_driver_data(disp);
+  lv_tft_espi_t *dsc = (lv_tft_espi_t *)lv_display_get_driver_data(disp);
 
-    uint32_t w = (area->x2 - area->x1 + 1);
-    uint32_t h = (area->y2 - area->y1 + 1);
+  uint32_t w = (area->x2 - area->x1 + 1);
+  uint32_t h = (area->y2 - area->y1 + 1);
 
-    tft.startWrite();
-    tft.setAddrWindow(area->x1, area->y1, w, h);
-    tft.pushColors((uint16_t *)px_map, w * h, true);
-    tft.endWrite();
+  tft.startWrite();
+  tft.setAddrWindow(area->x1, area->y1, w, h);
+  tft.pushColors((uint16_t *)px_map, w * h, true);
+  tft.endWrite();
 
-    lv_display_flush_ready(disp);
-
+  lv_display_flush_ready(disp);
 }
 
 lv_display_t *lv_tft_create(uint32_t hor_res, uint32_t ver_res, void *buf, uint32_t buf_size_bytes)
@@ -579,43 +584,75 @@ bool touchDetected = false;
 float smoothedLdrValue = 0; // Variable to store the smoothened LDR value
 const float alpha = 0.1;    // Smoothing factor (adjust for more/less smoothening)
 
-void loopBacklight()
+void checkTouched()
 {
-  if (ts.touched())
+  bool touched = ts.touched();
+  unsigned long currentTime = millis();
+
+  if (touched)
   {
-    if (!touchDetected)
+    if (!lastTouchState)
     {
-      touchStartTime = millis(); // Record the time when touch starts
-      touchDetected = true;
+      lastTouchStartTime = currentTime;
+      lastTouchState = true;
     }
-    else if (millis() - touchStartTime >= 30)
-    {                                      // Check if touch has been active for 300ms
-      backlightTimeout = millis() + 20000; // Set timeout to 20 seconds
-      backlightActive = true;
+
+    if (currentTime - lastTouchStartTime >= noiseThreshold)
+    {
+      lastValidTouchTime = currentTime;
+      TS_Point p = ts.getPoint();
+
+      if (p.x >= touchScreenMinimumX && p.x <= touchScreenMaximumX &&
+          p.y >= touchScreenMinimumY && p.y <= touchScreenMaximumY)
+      {
+        isTouched = true;
+      }
+      else
+      {
+        isTouched = false;
+      }
+    }
+    else
+    {
+      isTouched = false;
     }
   }
   else
   {
-    touchDetected = false; // Reset if touch is no longer detected
+    if (lastTouchState && (currentTime - lastValidTouchTime >= debounceDelay))
+    {
+      lastTouchState = false;
+      isTouched = false;
+    }
+  }
+}
+
+
+void loopBacklight()
+{
+  checkTouched();
+  if (isTouched)
+  {
+    backlightActive = true;
+    backlightTimeout = millis() + 20000;
   }
 
   if (backlightActive)
   {
     ledcAnalogWrite(LEDC_CHANNEL_0, 150);
     if (millis() > backlightTimeout)
-    {
-      backlightActive = false; // Disable backlight after timeout
-    }
+      backlightActive = false;
   }
   else
   {
     int ldrValue = readLdr();
-    smoothedLdrValue = (alpha * ldrValue) + ((1 - alpha) * smoothedLdrValue); // Apply EMA
-    int brightness = map(smoothedLdrValue, 400, 0, 0, 150);                   // Map smoothed LDR values to brightness
-    brightness = constrain(brightness, 0, 150);                               // Ensure brightness stays within range
+    smoothedLdrValue = (alpha * ldrValue) + ((1 - alpha) * smoothedLdrValue);
+    int brightness = map(smoothedLdrValue, 400, 0, 0, 150);
+    brightness = constrain(brightness, 0, 150);
     ledcAnalogWrite(LEDC_CHANNEL_0, brightness);
   }
 }
+
 
 uint32_t lastTick = 0;
 
