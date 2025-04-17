@@ -44,7 +44,7 @@ void setupMMWave()
 
     if (isDetected == true)
     {
-        turnLightOn();
+        turnLightOnB();
         setHue(NATURAL_HUE);
     }
 }
@@ -145,11 +145,11 @@ void loopMMWave()
 
         if (average == 1.00)
         {
-            turnLightOn();
+            turnLightOnB();
         }
         else if (average == 0.00)
         {
-            turnLightOff();
+            turnLightOffB();
         }
         else
         {

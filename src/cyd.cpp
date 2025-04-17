@@ -84,7 +84,6 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
         data->point.y = map(p.y, touchScreenMinimumY, touchScreenMaximumY, 0, TFT_VER_RES);
         isTouched = true;
         data->state = LV_INDEV_STATE_PRESSED;
-        delay(500);
       }
       else
       {
@@ -168,15 +167,11 @@ static void light_switch_event_cb(lv_event_t *e)
   Serial.println("Switch toggled: " + String(lightSwitchState));
   if (lightSwitchState)
   {
-    waitForAvailable();
     milightClient->updateStatus(MiLightStatus::ON);
-    releaseMutex();
   }
   else
   {
-    waitForAvailable();
     milightClient->updateStatus(MiLightStatus::OFF);
-    releaseMutex();
   }
 }
 
@@ -666,11 +661,11 @@ void loopDisplay(void *param)
     lv_tick_inc(millis() - lastTick);
     lastTick = millis();
     lv_timer_handler();
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    state = stateStore->get(myBulbId);
-    bool isOn = state->isOn();
+    vTaskDelay(1 / portTICK_PERIOD_MS);
     if (millis() - previousMillis >= interval)
     {
+      state = stateStore->get(myBulbId);
+      bool isOn = state->isOn();
       previousMillis = millis();
 
       update_switch_from_variable(lightSwitch, isOn);
