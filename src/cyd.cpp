@@ -652,7 +652,7 @@ void loopBacklight()
 uint32_t lastTick = 0;
 
 unsigned long previousMillis = 0;
-const unsigned long interval = 1000;
+const unsigned long interval = 100;
 
 void loopDisplay(void *param)
 {

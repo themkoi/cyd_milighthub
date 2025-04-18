@@ -32,7 +32,7 @@ void releaseMutex()
 void waitForAvailable()
 {
     xSemaphoreTake(lightMutex, portMAX_DELAY);
-    delay(500);
+    delay(200);
 }
 
 void turnLightOnBImp()
