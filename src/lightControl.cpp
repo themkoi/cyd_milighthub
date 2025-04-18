@@ -27,8 +27,9 @@ void initLight()
 
 void releaseMutex()
 {
-    isLightMutexTaken = false;
     xSemaphoreGive(lightMutex);
+    delay(1000);
+    isLightMutexTaken = false;
 }
 
 void waitForAvailable()
@@ -326,4 +327,6 @@ void initLightManager()
         NULL,             /* Task handle. */
         1                 /* Core where the task should run. */
     );
+    setHue(NATURAL_HUE);
+    turnLightOffB();
 }

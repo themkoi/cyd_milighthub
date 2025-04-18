@@ -16,7 +16,7 @@ bool lightSwitchState = false; // Boolean state for the switch
 lv_obj_t *lightSwitch;
 lv_obj_t *lightLabel;
 
-bool mmwaveState = true; // Boolean state for the switch
+bool mmwaveState = false; // Boolean state for the switch
 lv_obj_t *mmwaveSwitch;
 lv_obj_t *mmwaveLabel;
 

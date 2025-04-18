@@ -41,12 +41,8 @@ void setupMMWave()
 {
     initRadar();
     milightClient->prepare(config, deviceId, groupId);
-
-    if (isDetected == true)
-    {
-        turnLightOnB();
-        setHue(NATURAL_HUE);
-    }
+    setHue(NATURAL_HUE);
+    turnLightOffB();
 }
 
 uint32_t lastReading = 0;
@@ -64,9 +60,9 @@ bool readFailed = false;
 
 void loopMMWave()
 {
-    static float total = 0.0; 
+    static float total = 0.0;
     static int count = 0;
-    static float average = 0.0; 
+    static float average = 0.0;
     if (readFailed == true)
     {
         connectionFailCount++;
@@ -96,7 +92,9 @@ void loopMMWave()
                 readFailed = false;
                 isDetected = radar.isTargetDetected;
                 Serial.printf("Detected: %d\n", isDetected);
-            } else {
+            }
+            else
+            {
                 readFailed = true;
             }
         }
