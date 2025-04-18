@@ -14,6 +14,7 @@ uint8_t brightnessBeforeOff = 100;
 const MiLightRemoteConfig *config = &FUT098Config;
 
 SemaphoreHandle_t lightMutex;
+bool isLightMutexTaken = false;
 
 void initLight()
 {
@@ -26,11 +27,13 @@ void initLight()
 
 void releaseMutex()
 {
+    isLightMutexTaken = false;
     xSemaphoreGive(lightMutex);
 }
 
 void waitForAvailable()
 {
+    isLightMutexTaken = true;
     xSemaphoreTake(lightMutex, portMAX_DELAY);
     delay(200);
 }

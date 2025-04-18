@@ -13,6 +13,7 @@ extern const uint8_t groupId;
 extern const MiLightRemoteConfig* config;
 
 extern SemaphoreHandle_t lightMutex;
+extern bool isLightMutexTaken;
 
 typedef enum
 {

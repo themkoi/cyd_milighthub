@@ -662,7 +662,7 @@ void loopDisplay(void *param)
     lastTick = millis();
     lv_timer_handler();
     vTaskDelay(1 / portTICK_PERIOD_MS);
-    if (millis() - previousMillis >= interval && isTouched == false)
+    if (millis() - previousMillis >= interval && isTouched == false && isLightMutexTaken == false)
     {
       state = stateStore->get(myBulbId);
       bool isOn = state->isOn();
