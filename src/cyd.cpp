@@ -100,7 +100,7 @@ void my_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
   else
   {
     unsigned long currentTime = millis();
-
+    isTouched = false;
     if (lastTouchState && (currentTime - lastValidTouchTime >= debounceDelay))
     {
       lastTouchState = false;
@@ -656,7 +656,7 @@ const unsigned long interval = 100;
 
 void loopDisplay(void *param)
 {
-  for (;;)
+  while (true)
   {
     lv_tick_inc(millis() - lastTick);
     lastTick = millis();

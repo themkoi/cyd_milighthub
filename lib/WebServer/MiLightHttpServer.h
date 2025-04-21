@@ -1,11 +1,4 @@
-#include <RichHttpServer.h>
-#include <MiLightClient.h>
-#include <Settings.h>
-#include <WebSocketsServer.h>
-#include <GroupStateStore.h>
-#include <RadioSwitchboard.h>
-#include <PacketSender.h>
-#include <TransitionController.h>
+#include "includes.h"
 
 #ifndef _MILIGHT_HTTP_SERVER
 #define _MILIGHT_HTTP_SERVER

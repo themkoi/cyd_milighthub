@@ -488,10 +488,7 @@ void setup() {
 size_t i = 0;
 
 void loop() {
-  if (mmwaveState == true)
-  {
   loopMMWave();
-  }
   loopBacklight();
   delay(5);
 }

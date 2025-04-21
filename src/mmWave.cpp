@@ -1,4 +1,6 @@
 #include "mmWave.h"
+#include "defines.h"
+
 
 HardwareSerial mmWaveSerial(2);
 
@@ -136,7 +138,7 @@ void loopMMWave()
         }
     }
 
-    if (millis() - lastStateChange > responseTime && count > 0)
+    if (millis() - lastStateChange > responseTime && count > 0 && mmwaveState == true)
     {
         Serial.print("Final Average: ");
         Serial.println(average);

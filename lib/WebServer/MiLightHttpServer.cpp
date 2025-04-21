@@ -130,6 +130,10 @@ void MiLightHttpServer::begin() {
     .buildHandler("/firmware")
     .handleOTA();
 
+  server
+    .buildHandler("/mmwave")
+    .on(HTTP_GET, handleMmwave);
+
   server.clearBuilders();
 
   // set up web socket server

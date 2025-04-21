@@ -4,9 +4,6 @@
 #include <Arduino.h>
 #define DEBUG_PRINTF
 
-#include "milightIncludes.h"
-#include "lightControl.h"
-
 #define DISABLE_ALL_LIBRARY_WARNINGS // to get rid of the touch cs missing warning
 
 #define TOUCH_CS 33 // just to get rid of warning
@@ -72,5 +69,7 @@ void milightTask(void *param);
 #define TIME_OFFSET_S 3600            // Time offset in seconds, use this as timezones
 
 #include "ntp.h"
+#include "milightIncludes.h"
+#include "lightControl.h"
 
 #endif
