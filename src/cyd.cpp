@@ -623,7 +623,7 @@ void checkTouched()
 }
 
 
-void loopBacklight()
+void manageBacklight()
 {
   checkTouched();
   if (isTouched)
@@ -672,5 +672,13 @@ void loopDisplay(void *param)
       update_slider_from_variable();
       updateTimeLabel();
     }
+  }
+}
+
+void loopBacklight(void *param) {
+  while (true)
+  { 
+  manageBacklight();
+  delay(200);
   }
 }

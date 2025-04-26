@@ -483,13 +483,21 @@ void setup() {
     NULL,                // Task handle (optional)
     1                    // Core ID (0 for Core 0, 1 for Core 1)
   );
+  xTaskCreatePinnedToCore(
+    loopBacklight,         // Task function
+    "LoopDisplay",       // Name of the task (for debugging)
+    6096,                // Stack size (in words)
+    NULL,                // Task parameter
+    0,                   // Task priority
+    NULL,                // Task handle (optional)
+    0                    // Core ID (0 for Core 0, 1 for Core 1)
+  );
 }
 
 size_t i = 0;
 
 void loop() {
   loopMMWave();
-  loopBacklight();
   delay(5);
 }
 

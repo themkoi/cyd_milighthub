@@ -12,7 +12,9 @@ extern TFT_eSPI tft;
 extern bool mmwaveState;
 
 void loopDisplay(void *param);
-void loopBacklight();
+void loopBacklight(void *param);
+
+void manageBacklight();
 
 void initCydHardware();
 
