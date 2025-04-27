@@ -20,3 +20,4 @@
 /test/remote/espmh.env
 lib/Environment/wifi_credentials.h
 .idea
+flash_image*

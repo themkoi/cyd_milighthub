@@ -503,25 +503,28 @@ void loop() {
 
 void milightTask(void *param) {
 
-  for(;;){
-  if (WiFi.getMode() == WIFI_STA && WiFi.isConnected()) {
+  while(true){
 
-    httpServer->handleClient();
-
-    handleListen();
-
-    stateStore->limitedFlush();
-    if (xSemaphoreTake(lightMutex, pdMS_TO_TICKS(500)))
-    {
-      packetSender->loop();
-      xSemaphoreGive(lightMutex);
-    } else {
-      Serial.println("mutex full");
-    }
-
-    transitions.loop();
+  if (wifiManager) {
+    wifiManager->process();
   }
-  vTaskDelay(1);
+  
+  if (WiFi.getMode() == WIFI_STA && WiFi.isConnected()) {
+    httpServer->handleClient();
+  }
+
+  handleListen();
+
+  stateStore->limitedFlush();
+  if (xSemaphoreTake(lightMutex, pdMS_TO_TICKS(500)))
+  {
+    packetSender->loop();
+    transitions.loop();
+    xSemaphoreGive(lightMutex);
+  } else {
+    Serial.println("mutex full");
+  }
+  vTaskDelay(5);
   }
 }
 
