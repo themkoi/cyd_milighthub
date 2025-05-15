@@ -179,6 +179,11 @@ static void mmwave_switch_event_cb(lv_event_t *e)
 {
   lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e); // Explicit cast to lv_obj_t*
   mmwaveState = lv_obj_has_state(sw, LV_STATE_CHECKED);
+  if (mmwaveState == true)
+  {
+    turnLightOn();
+  }
+  
   Serial.println("Switch toggled: " + String(mmwaveState));
 }
 
