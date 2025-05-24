@@ -15,10 +15,8 @@ void initRadar()
     bool isRadarEnabled = radar.begin(mmWaveSerial, Serial);
     Serial.printf("Radar status: %s\n", isRadarEnabled ? "Ok" : "Failed");
 
-    radar.setRadarConfigurationMaximumGates(5);
-    radar.setRadarConfigurationMinimumGates(0);
     radar.setRadarConfigurationDelay(5);
-    radar.setRadarConfigurationActiveFrameNum(5);
+    radar.setRadarConfigurationActiveFrameNum(1);
     radar.setRadarConfigurationInactiveFrameNum(10);
 
     if (isRadarEnabled && radar.readAllRadarConfigs())
