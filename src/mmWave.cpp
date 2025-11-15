@@ -1,12 +1,12 @@
 #include "mmWave.h"
 #include "defines.h"
 
-
 HardwareSerial mmWaveSerial(2);
 
 s3km1110 radar;
 
 bool isDetected = true;
+bool averageDetect = false;
 
 void initRadar()
 {
@@ -15,7 +15,9 @@ void initRadar()
     bool isRadarEnabled = radar.begin(mmWaveSerial, Serial);
     Serial.printf("Radar status: %s\n", isRadarEnabled ? "Ok" : "Failed");
 
-    radar.setRadarConfigurationDelay(5);
+    radar.setRadarConfigurationMaximumGates(5);
+    radar.setRadarConfigurationMinimumGates(0);
+    radar.setRadarConfigurationDelay(10);
     radar.setRadarConfigurationActiveFrameNum(1);
     radar.setRadarConfigurationInactiveFrameNum(10);
 
@@ -136,18 +138,26 @@ void loopMMWave()
         }
     }
 
-    if (millis() - lastStateChange > responseTime && count > 0 && mmwaveState == true)
+    if (millis() - lastStateChange > responseTime && count > 0)
     {
         Serial.print("Final Average: ");
         Serial.println(average);
 
         if (average == 1.00)
         {
-            turnLightOnB();
+            if (mmwaveState == true)
+            {
+                turnLightOnB();
+            }
+            averageDetect = true;
         }
         else if (average == 0.00)
         {
-            turnLightOffB();
+            if (mmwaveState == true)
+            {
+                turnLightOffB();
+            }
+            averageDetect = false;
         }
         else
         {

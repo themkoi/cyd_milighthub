@@ -2,6 +2,7 @@
 #define MMWAVE_H
 
 extern bool isDetected;
+extern bool averageDetect;
 
 void setupMMWave();
 
