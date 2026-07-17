@@ -327,6 +327,8 @@ void initLightManager()
         NULL,             /* Task handle. */
         1                 /* Core where the task should run. */
     );
+    delay(500);
+    turnLightOnB();
     setHue(NATURAL_HUE);
     turnLightOffB();
 }

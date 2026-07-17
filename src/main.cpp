@@ -492,6 +492,7 @@ void setup() {
     NULL,                // Task handle (optional)
     0                    // Core ID (0 for Core 0, 1 for Core 1)
   );
+  Serial.println("Mac Address: " + String(WiFi.macAddress()));
 }
 
 size_t i = 0;
