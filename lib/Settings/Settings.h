@@ -38,9 +38,9 @@
 #define MILIGHT_HUB_VERSION unknown
 #endif
 
-#ifdef ESP8266
+#if defined(ESP8266)
 #define CSN_DEFAULT_PIN 15
-#elif ESP32
+#elif defined(ESP32)
 #define CSN_DEFAULT_PIN 5
 #endif
 
@@ -311,7 +311,7 @@ protected:
       else {
         var = val.as<T>();
       }
-#elif ESP32
+#elif defined (ESP32)
       if (std::is_same<bool, T>::value) {
         if (val.is<bool>()) {
           var = val.as<bool>();

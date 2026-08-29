@@ -134,7 +134,6 @@ void MiLightHttpServer::begin() {
     .buildHandler("/mmwave")
     .on(HTTP_GET, handleMmwave);
 
-  server.clearBuilders();
 
   // set up web socket server
   wsServer.onEvent(
@@ -186,7 +185,7 @@ void MiLightHttpServer::handleSystemPost(RequestContext& request) {
       delay(100);
 #ifdef ESP8266
       ESP.eraseConfig();
-#elif ESP32
+#elif defined (ESP32)
       Serial.println(F("Wifi reset..."));
       WiFi.disconnect(true, true);
       delay(1000);
@@ -332,7 +331,7 @@ void MiLightHttpServer::handleFirmwareUpload() {
     }
   }
   yield();
-#elif ESP32
+#elif defined (ESP32)
   HTTPUpload &upload = server.upload();
   if (upload.status == UPLOAD_FILE_START) {
     Serial.printf("Update: %s\n", upload.filename.c_str());
@@ -425,7 +424,7 @@ void MiLightHttpServer::sendGroupState(bool allowAsync, BulbId& bulbId, RichHttp
   bool blockOnQueue = server.arg("blockOnQueue").equalsIgnoreCase("true");
   bool normalizedFormat = server.arg("fmt").equalsIgnoreCase("normalized");
 
-  // Wait for packet queue to flush out.  State will not have been updated before that.
+  // Wait for packet queue to flush out. State will not have been updated before that.
   // Bit hacky to call loop outside of main loop, but should be fine.
   while (blockOnQueue && packetSender->isSending()) {
     packetSender->loop();
@@ -691,33 +690,9 @@ void MiLightHttpServer::handlePacketSent(uint8_t *packet, const MiLightRemoteCon
 }
 
 void MiLightHttpServer::handleServe_P(const char* data, size_t length, const char* contentType) {
-  const size_t CHUNK_SIZE = 4096; 
-
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.sendHeader("Content-Encoding", "gzip");
   server.sendHeader("Cache-Control", "public, max-age=31536000");
-  server.send(200, contentType);
-
-  WiFiClient client = server.client();
-
-  size_t remaining = length;
-  while (remaining > 0) {
-    size_t chunk = remaining > CHUNK_SIZE ? CHUNK_SIZE : remaining;
-    
-    // Send chunk size in hexadecimal format
-    client.printf("%X\r\n", chunk);
-    
-    // Send chunk data
-    client.write_P(data, chunk);
-    client.print("\r\n");
-    
-    data += chunk;
-    remaining -= chunk;
-  }
-
-  // Send the terminal chunk
-  client.print("0\r\n\r\n");
-  client.stop();
+  server.send_P(200, contentType, data, length);
 }
 
 void MiLightHttpServer::handleGetTransition(RequestContext& request) {

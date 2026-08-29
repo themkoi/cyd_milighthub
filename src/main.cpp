@@ -3,67 +3,74 @@
 #include "defines.h"
 #include "milightIncludes.h"
 
-WiFiManager* wifiManager;
+WiFiManager *wifiManager;
 // because of callbacks, these need to be in the higher scope :(
-WiFiManagerParameter* wifiStaticIP = NULL;
-WiFiManagerParameter* wifiStaticIPNetmask = NULL;
-WiFiManagerParameter* wifiStaticIPGateway = NULL;
-WiFiManagerParameter* wifiMode = NULL;
+WiFiManagerParameter *wifiStaticIP = NULL;
+WiFiManagerParameter *wifiStaticIPNetmask = NULL;
+WiFiManagerParameter *wifiStaticIPGateway = NULL;
+WiFiManagerParameter *wifiMode = NULL;
 
 static LEDStatus *ledStatus;
 
 Settings settings;
 
-MiLightClient* milightClient = NULL;
-RadioSwitchboard* radios = nullptr;
-PacketSender* packetSender = nullptr;
+MiLightClient *milightClient = NULL;
+RadioSwitchboard *radios = nullptr;
+PacketSender *packetSender = nullptr;
 std::shared_ptr<MiLightRadioFactory> radioFactory;
 MiLightHttpServer *httpServer = NULL;
-MqttClient* mqttClient = NULL;
-MiLightDiscoveryServer* discoveryServer = NULL;
+MqttClient *mqttClient = NULL;
+MiLightDiscoveryServer *discoveryServer = NULL;
 uint8_t currentRadioType = 0;
 
 // For tracking and managing group state
-GroupStateStore* stateStore = NULL;
-BulbStateUpdater* bulbStateUpdater = NULL;
+GroupStateStore *stateStore = NULL;
+BulbStateUpdater *bulbStateUpdater = NULL;
 TransitionController transitions;
 
 std::vector<std::shared_ptr<MiLightUdpServer>> udpServers;
 
 /**
- * Set up UDP servers (both v5 and v6).  Clean up old ones if necessary.
+ * Set up UDP servers (both v5 and v6). Clean up old ones if necessary.
  */
-void initMilightUdpServers() {
-  if (! WiFi.isConnected()) {
+void initMilightUdpServers()
+{
+  if (!WiFi.isConnected())
+  {
     return;
   }
 
   udpServers.clear();
 
-  for (size_t i = 0; i < settings.gatewayConfigs.size(); ++i) {
-    const GatewayConfig& config = *settings.gatewayConfigs[i];
+  for (size_t i = 0; i < settings.gatewayConfigs.size(); ++i)
+  {
+    const GatewayConfig &config = *settings.gatewayConfigs[i];
 
     std::shared_ptr<MiLightUdpServer> server = MiLightUdpServer::fromVersion(
-      config.protocolVersion,
-      milightClient,
-      config.port,
-      config.deviceId
-    );
+        config.protocolVersion,
+        milightClient,
+        config.port,
+        config.deviceId);
 
-    if (server == NULL) {
+    if (server == NULL)
+    {
       Serial.print(F("Error creating UDP server with protocol version: "));
       Serial.println(config.protocolVersion);
-    } else {
+    }
+    else
+    {
       udpServers.push_back(std::move(server));
       udpServers[i]->begin();
     }
   }
 
-  if (discoveryServer) {
+  if (discoveryServer)
+  {
     delete discoveryServer;
     discoveryServer = NULL;
   }
-  if (settings.discoveryPort != 0) {
+  if (settings.discoveryPort != 0)
+  {
     discoveryServer = new MiLightDiscoveryServer(settings);
     discoveryServer->begin();
   }
@@ -75,7 +82,8 @@ void initMilightUdpServers() {
  * Called both when a packet is sent locally, and when an intercepted packet
  * is read.
  */
-void onPacketSentHandler(uint8_t* packet, const MiLightRemoteConfig& config) {
+void onPacketSentHandler(uint8_t *packet, const MiLightRemoteConfig &config)
+{
   StaticJsonDocument<200> buffer;
   JsonObject result = buffer.to<JsonObject>();
 
@@ -84,50 +92,60 @@ void onPacketSentHandler(uint8_t* packet, const MiLightRemoteConfig& config) {
   // set LED mode for a packet movement
   ledStatus->oneshot(settings.ledModePacket, settings.ledModePacketCount);
 
-  if (bulbId == DEFAULT_BULB_ID) {
+  if (bulbId == DEFAULT_BULB_ID)
+  {
     Serial.println(F("Skipping packet handler because packet was not decoded"));
     return;
   }
 
-  const MiLightRemoteConfig& remoteConfig =
-    *MiLightRemoteConfig::fromType(bulbId.deviceType);
+  const MiLightRemoteConfig &remoteConfig =
+      *MiLightRemoteConfig::fromType(bulbId.deviceType);
 
   // update state to reflect changes from this packet
-  GroupState* groupState = stateStore->get(bulbId);
+  GroupState *groupState = stateStore->get(bulbId);
 
   // pass in previous scratch state as well
   const GroupState stateUpdates(groupState, result);
 
-  if (groupState != NULL) {
+  if (groupState != NULL)
+  {
     groupState->patch(stateUpdates);
 
     // Copy state before setting it to avoid group 0 re-initialization clobbering it
     stateStore->set(bulbId, stateUpdates);
   }
 
-  if (mqttClient) {
+  if (mqttClient)
+  {
     // Sends the state delta derived from the raw packet
     char output[200];
     serializeJson(result, output);
     mqttClient->sendUpdate(remoteConfig, bulbId.deviceId, bulbId.groupId, output);
 
     // Sends the entire state
-    if (groupState != NULL) {
+    if (groupState != NULL)
+    {
       bulbStateUpdater->enqueueUpdate(bulbId, *groupState);
     }
   }
 
-  httpServer->handlePacketSent(packet, remoteConfig, bulbId, result);
+  if (httpServer != NULL)
+  {
+    httpServer->handlePacketSent(packet, remoteConfig, bulbId, result);
+  }
 }
 
 /**
  * Cycle to the next enabled radio type and returns true.
  * Returns false if none is enabled.
  */
-bool nextRadioType() {
-  for (uint8_t offset = 1; offset < ListenProtocolHelpers::numProtocols(); ++offset) {
+bool nextRadioType()
+{
+  for (uint8_t offset = 1; offset < ListenProtocolHelpers::numProtocols(); ++offset)
+  {
     uint8_t idx = (currentRadioType + offset) % ListenProtocolHelpers::numProtocols();
-    if (settings.isListenProtocolEnabled(idx)) {
+    if (settings.isListenProtocolEnabled(idx))
+    {
       currentRadioType = idx;
       return true;
     }
@@ -136,35 +154,40 @@ bool nextRadioType() {
 }
 
 /**
- * Listen for packets on one radio config.  Cycles through all configs as its
+ * Listen for packets on one radio config. Cycles through all configs as its
  * called.
  */
-void handleListen() {
+void handleListen()
+{
   // Do not handle listens while there are packets enqueued to be sent
   // Doing so causes the radio module to need to be reinitialized inbetween
   // repeats, which slows things down.
-  if (! settings.listenRepeats || packetSender->isSending()) {
+  if (!settings.listenRepeats || packetSender->isSending())
+  {
     return;
   }
 
-  if(!nextRadioType()) {
+  if (!nextRadioType())
+  {
     // No listening protocols enabled
     return;
   }
   std::shared_ptr<MiLightRadio> radio = radios->switchRadio(currentRadioType);
 
-  for (size_t i = 0; i < settings.listenRepeats; i++) {
-    if (radios->available()) {
+  for (size_t i = 0; i < settings.listenRepeats; i++)
+  {
+    if (radios->available())
+    {
       uint8_t readPacket[MILIGHT_MAX_PACKET_LENGTH];
       size_t packetLen = radios->read(readPacket);
 
-      const MiLightRemoteConfig* remoteConfig = MiLightRemoteConfig::fromReceivedPacket(
-        radio->config(),
-        readPacket,
-        packetLen
-      );
+      const MiLightRemoteConfig *remoteConfig = MiLightRemoteConfig::fromReceivedPacket(
+          radio->config(),
+          readPacket,
+          packetLen);
 
-      if (remoteConfig == NULL) {
+      if (remoteConfig == NULL)
+      {
         // This can happen under normal circumstances, so not an error condition
 #ifdef DEBUG_PRINTF
         Serial.println(F("WARNING: Couldn't find remote for received packet"));
@@ -179,21 +202,25 @@ void handleListen() {
 }
 
 /**
- * Called when MqttClient#update is first being processed.  Stop sending updates
+ * Called when MqttClient#update is first being processed. Stop sending updates
  * and aggregate state changes until the update is finished.
  */
-void onUpdateBegin() {
-  if (bulbStateUpdater) {
+void onUpdateBegin()
+{
+  if (bulbStateUpdater)
+  {
     bulbStateUpdater->disable();
   }
 }
 
 /**
- * Called when MqttClient#update is finished processing.  Re-enable state
+ * Called when MqttClient#update is finished processing. Re-enable state
  * updates, which will flush accumulated state changes.
  */
-void onUpdateEnd() {
-  if (bulbStateUpdater) {
+void onUpdateEnd()
+{
+  if (bulbStateUpdater)
+  {
     bulbStateUpdater->enable();
   }
 }
@@ -201,24 +228,30 @@ void onUpdateEnd() {
 /**
  * Apply what's in the Settings object.
  */
-void applySettings() {
-  if (milightClient) {
+void applySettings()
+{
+  if (milightClient)
+  {
     delete milightClient;
   }
-  if (mqttClient) {
+  if (mqttClient)
+  {
     delete mqttClient;
     delete bulbStateUpdater;
 
     mqttClient = NULL;
     bulbStateUpdater = NULL;
   }
-  if (stateStore) {
+  if (stateStore)
+  {
     delete stateStore;
   }
-  if (packetSender) {
+  if (packetSender)
+  {
     delete packetSender;
   }
-  if (radios) {
+  if (radios)
+  {
     delete radios;
   }
 
@@ -226,7 +259,8 @@ void applySettings() {
 
   radioFactory = MiLightRadioFactory::fromSettings(settings);
 
-  if (radioFactory == NULL) {
+  if (radioFactory == NULL)
+  {
     Serial.println(F("ERROR: unable to construct radio factory"));
   }
 
@@ -236,27 +270,27 @@ void applySettings() {
   packetSender = new PacketSender(*radios, settings, onPacketSentHandler);
 
   milightClient = new MiLightClient(
-    *radios,
-    *packetSender,
-    stateStore,
-    settings,
-    transitions
-  );
+      *radios,
+      *packetSender,
+      stateStore,
+      settings,
+      transitions);
   milightClient->onUpdateBegin(onUpdateBegin);
   milightClient->onUpdateEnd(onUpdateEnd);
 
-  if (settings.mqttServer().length() > 0) {
+  if (settings.mqttServer().length() > 0)
+  {
     mqttClient = new MqttClient(settings, milightClient);
     mqttClient->begin();
-    mqttClient->onConnect([]() {
+    mqttClient->onConnect([]()
+                          {
       if (settings.homeAssistantDiscoveryPrefix.length() > 0) {
         HomeAssistantDiscoveryClient discoveryClient(settings, mqttClient);
         discoveryClient.sendDiscoverableDevices(settings.groupIdAliases);
         discoveryClient.removeOldDevices(settings.deletedGroupIdAliases);
 
         settings.deletedGroupIdAliases.clear();
-      }
-    });
+      } });
 
     bulbStateUpdater = new BulbStateUpdater(settings, *mqttClient, *stateStore);
   }
@@ -264,7 +298,8 @@ void applySettings() {
   initMilightUdpServers();
 
   // update LED pin and operating mode
-  if (ledStatus) {
+  if (ledStatus)
+  {
     ledStatus->changePin(settings.ledPin);
     ledStatus->continuous(settings.ledModeOperating);
   }
@@ -272,7 +307,8 @@ void applySettings() {
   WiFi.hostname(settings.hostname);
 #ifdef ESP8266
   WiFiPhyMode_t wifiPhyMode;
-switch (settings.wifiMode) {
+  switch (settings.wifiMode)
+  {
   case WifiMode::B:
     wifiPhyMode = WIFI_PHY_MODE_11B;
     break;
@@ -283,20 +319,21 @@ switch (settings.wifiMode) {
   case WifiMode::N:
     wifiPhyMode = WIFI_PHY_MODE_11N;
     break;
-}
+  }
   WiFi.setPhyMode(wifiPhyMode);
-#elif ESP32
-  switch (settings.wifiMode) {
-    case WifiMode::B:
-      esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B);
-      break;
-    case WifiMode::G:
-      esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11G);
-      break;
-    default:
-    case WifiMode::N:
-      esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11N);
-      break;
+#elif defined (ESP32)
+  switch (settings.wifiMode)
+  {
+  case WifiMode::B:
+    esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B);
+    break;
+  case WifiMode::G:
+    esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11G);
+    break;
+  default:
+  case WifiMode::N:
+    esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11N);
+    break;
   }
   esp_wifi_set_bandwidth(WIFI_IF_STA, WIFI_BW_HT20);
 #endif
@@ -305,15 +342,18 @@ switch (settings.wifiMode) {
 /**
  *
  */
-bool shouldRestart() {
-  if (! settings.isAutoRestartEnabled()) {
+bool shouldRestart()
+{
+  if (!settings.isAutoRestartEnabled())
+  {
     return false;
   }
 
-  return settings.getAutoRestartPeriod()*60*1000 < millis();
+  return settings.getAutoRestartPeriod() * 60 * 1000 < millis();
 }
 
-void wifiExtraSettingsChange() {
+void wifiExtraSettingsChange()
+{
   settings.wifiStaticIP = wifiStaticIP->getValue();
   settings.wifiStaticIPNetmask = wifiStaticIPNetmask->getValue();
   settings.wifiStaticIPGateway = wifiStaticIPGateway->getValue();
@@ -325,36 +365,43 @@ void wifiExtraSettingsChange() {
   ESP.restart();
 }
 
-void aboutHandler(JsonDocument& json) {
+void aboutHandler(JsonDocument &json)
+{
   JsonObject mqtt = json.createNestedObject(FPSTR("mqtt"));
   mqtt[FPSTR("configured")] = (mqttClient != nullptr);
 
-  if (mqttClient) {
+  if (mqttClient)
+  {
     mqtt[FPSTR("connected")] = mqttClient->isConnected();
     mqtt[FPSTR("status")] = mqttClient->getConnectionStatusString();
   }
 }
 
-// Called when a group is deleted via the REST API.  Will publish an empty message to
+// Called when a group is deleted via the REST API. Will publish an empty message to
 // the MQTT topic to delete retained state
-void onGroupDeleted(const BulbId& id) {
-  if (mqttClient != NULL) {
+void onGroupDeleted(const BulbId &id)
+{
+  if (mqttClient != NULL)
+  {
     mqttClient->sendState(
-      *MiLightRemoteConfig::fromType(id.deviceType),
-      id.deviceId,
-      id.groupId,
-      ""
-    );
+        *MiLightRemoteConfig::fromType(id.deviceType),
+        id.deviceId,
+        id.groupId,
+        "");
   }
 }
 
-bool initialized = false;
-void postConnectSetup() {
-  if (initialized) return;
-  initialized = true;
+bool initializedPost = false;
+void postConnectSetup()
+{
+  if (initializedPost)
+    return;
 
-  delete wifiManager;
-  wifiManager = NULL;
+  if (wifiManager != NULL)
+  {
+    delete wifiManager;
+    wifiManager = NULL;
+  }
 
   SSDP.setSchemaURL("description.xml");
   SSDP.setHTTPPort(80);
@@ -364,51 +411,52 @@ void postConnectSetup() {
   SSDP.setDeviceType("upnp:rootdevice");
   SSDP.begin();
 
-  httpServer = new MiLightHttpServer(settings, milightClient, stateStore, packetSender, radios, transitions);
-  httpServer->onSettingsSaved(applySettings);
-  httpServer->onGroupDeleted(onGroupDeleted);
-  httpServer->onAbout(aboutHandler);
-  httpServer->on("/description.xml", HTTP_GET, []() { SSDP.schema(httpServer->client()); });
-  httpServer->begin();
+  MiLightHttpServer *tempServer = new MiLightHttpServer(settings, milightClient, stateStore, packetSender, radios, transitions);
+  tempServer->onSettingsSaved(applySettings);
+  tempServer->onGroupDeleted(onGroupDeleted);
+  tempServer->onAbout(aboutHandler);
+  tempServer->on("/description.xml", HTTP_GET, []()
+                 { SSDP.schema(httpServer->client()); });
+  tempServer->begin();
+
+  httpServer = tempServer;
 
   transitions.addListener(
-      [](const BulbId& bulbId, GroupStateField field, uint16_t value) {
-          StaticJsonDocument<100> buffer;
+      [](const BulbId &bulbId, GroupStateField field, uint16_t value)
+      {
+        StaticJsonDocument<100> buffer;
 
-          const char* fieldName = GroupStateFieldHelpers::getFieldName(field);
-          buffer[fieldName] = value;
+        const char *fieldName = GroupStateFieldHelpers::getFieldName(field);
+        buffer[fieldName] = value;
 
-          milightClient->prepare(bulbId.deviceType, bulbId.deviceId, bulbId.groupId);
-          milightClient->update(buffer.as<JsonObject>());
-      }
-  );
+        milightClient->prepare(bulbId.deviceType, bulbId.deviceId, bulbId.groupId);
+        milightClient->update(buffer.as<JsonObject>());
+      });
 
   initMilightUdpServers();
 
+  initializedPost = true;
   Serial.printf_P(PSTR("Setup complete (version %s)\n"), QUOTE(MILIGHT_HUB_VERSION));
 }
 
-
-#include "defines.h"
-
-
-void setup() {
+void setup()
+{
   setCpuFrequencyMhz(240);
   Serial.begin(115200);
   syncTimeLibWithRTC();
   String ssid = "ESP" + String(getESPId());
 
-  // load up our persistent settings from the file system
-  // ESP8266 doesn't support the formatOnFail parameter
-  #ifdef ESP8266
-    if (! ProjectFS.begin()) {
-      Serial.println(F("Failed to mount file system"));
-    }
-  #else
-    if (! ProjectFS.begin(true)) {
-      Serial.println(F("Failed to mount file system"));
-    }
-  #endif
+#ifdef ESP8266
+  if (!ProjectFS.begin())
+  {
+    Serial.println(F("Failed to mount file system"));
+  }
+#else
+  if (!ProjectFS.begin(true))
+  {
+    Serial.println(F("Failed to mount file system"));
+  }
+#endif
 
   Settings::load(settings);
   ESPMH_SETUP_WIFI(settings);
@@ -420,7 +468,6 @@ void setup() {
 
   wifiManager = new WiFiManager();
 
-  // Setting breakAfterConfig to true causes wifiExtraSettingsChange to be called whenever config params are changed
   wifiManager->setBreakAfterConfig(true);
   wifiManager->setSaveConfigCallback(wifiExtraSettingsChange);
 
@@ -429,35 +476,33 @@ void setup() {
   wifiManager->setConnectRetries(5);
 
   wifiMode = new WiFiManagerParameter(
-    "wifiMode",
-    "WiFi Mode (b/g/n)",
-    settings.wifiMode == WifiMode::B ? "b" : settings.wifiMode == WifiMode::G ? "g" : "n",
-    1
-  );
+      "wifiMode",
+      "WiFi Mode (b/g/n)",
+      settings.wifiMode == WifiMode::B ? "b" : settings.wifiMode == WifiMode::G ? "g"
+                                                                                : "n",
+      1);
   wifiManager->addParameter(wifiMode);
 
   wifiManager->setConfigPortalTimeout(180);
-  wifiManager->setConfigPortalTimeoutCallback([]() {
+  wifiManager->setConfigPortalTimeoutCallback([]()
+                                              {
       ledStatus->continuous(settings.ledModeWifiFailed);
 
-      Serial.println(F("Wifi config portal timed out.  Restarting..."));
+      Serial.println(F("Wifi config portal timed out. Restarting..."));
       delay(1000);
-      ESP.restart();
-  });
+      ESP.restart(); });
 
-  if (wifiManager->autoConnect(ssid.c_str(), "milightHub")) {
-    // set LED mode for successful operation
+  if (wifiManager->autoConnect(ssid.c_str(), "milightHub"))
+  {
     ledStatus->continuous(settings.ledModeOperating);
     Serial.println(F("Wifi connected successfully\n"));
 
-    // if the config portal was started, make sure to turn off the config AP
     WiFi.mode(WIFI_STA);
-
     postConnectSetup();
   }
 
-  vTaskDelay(10 / portTICK_PERIOD_MS);  // Delay to avoid busy loop
-  lightMutex =xSemaphoreCreateMutex();
+  vTaskDelay(10 / portTICK_PERIOD_MS);
+  lightMutex = xSemaphoreCreateMutex();
   initLightManager();
   setupMMWave();
   initCydHardware();
@@ -465,67 +510,86 @@ void setup() {
   setupUi();
 
   xTaskCreatePinnedToCore(
-    milightTask,         // Task function
-    "LoopMilight",       // Name of the task (for debugging)
-    6096,                // Stack size (in words)
-    NULL,                // Task parameter
-    2,                   // Task priority
-    NULL,                // Task handle (optional)
-    0                    // Core ID (0 for Core 0, 1 for Core 1)
+    milightTask,
+    "LoopMilight",
+    6096,
+    NULL,
+    2,
+    NULL,
+    0
   );
 
   xTaskCreatePinnedToCore(
-    loopDisplay,         // Task function
-    "LoopDisplay",       // Name of the task (for debugging)
-    6096,                // Stack size (in words)
-    NULL,                // Task parameter
-    1,                   // Task priority
-    NULL,                // Task handle (optional)
-    1                    // Core ID (0 for Core 0, 1 for Core 1)
+    loopDisplay,
+    "LoopDisplay",
+    6096,
+    NULL,
+    1,
+    NULL,
+    1
   );
+
   xTaskCreatePinnedToCore(
-    loopBacklight,         // Task function
-    "LoopDisplay",       // Name of the task (for debugging)
-    6096,                // Stack size (in words)
-    NULL,                // Task parameter
-    0,                   // Task priority
-    NULL,                // Task handle (optional)
-    0                    // Core ID (0 for Core 0, 1 for Core 1)
+    loopBacklight,
+    "LoopBacklight",
+    6096,
+    NULL,
+    0,
+    NULL,
+    1
   );
+
+  startBleTask();
   Serial.println("Mac Address: " + String(WiFi.macAddress()));
 }
 
-size_t i = 0;
-
-void loop() {
+void loop()
+{
   loopMMWave();
-  delay(5);
+  EventBits_t bits = xEventGroupGetBits(bleEventGroup);
+  if (bits & BLE_CONNECTED_BIT)
+  {
+    xEventGroupClearBits(bleEventGroup, BLE_CONNECTED_BIT);
+    toggle();
+  }
+  delay(50);
 }
 
-void milightTask(void *param) {
-
-  while(true){
-
-  if (wifiManager) {
-    wifiManager->process();
-  }
-  
-  if (WiFi.getMode() == WIFI_STA && WiFi.isConnected()) {
-    httpServer->handleClient();
-  }
-
-  handleListen();
-
-  stateStore->limitedFlush();
-  if (xSemaphoreTake(lightMutex, pdMS_TO_TICKS(500)))
+void milightTask(void *param)
+{
+  while (true)
   {
-    packetSender->loop();
-    transitions.loop();
-    xSemaphoreGive(lightMutex);
-  } else {
-    Serial.println("mutex full");
-  }
-  vTaskDelay(5);
+    if (wifiManager != NULL)
+    {
+      wifiManager->process();
+    }
+
+    if (WiFi.isConnected())
+    {
+      if (!initializedPost) {
+        postConnectSetup();
+      }
+
+      if (httpServer != NULL) {
+        httpServer->handleClient();
+      }
+    }
+
+    handleListen();
+
+    stateStore->limitedFlush();
+    if (xSemaphoreTake(lightMutex, pdMS_TO_TICKS(500)))
+    {
+      packetSender->loop();
+      transitions.loop();
+      xSemaphoreGive(lightMutex);
+    }
+    else
+    {
+      Serial.println("mutex full");
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 

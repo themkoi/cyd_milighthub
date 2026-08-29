@@ -243,6 +243,14 @@ void speedDown()
     xQueueSend(actionQueue, &actionData, portMAX_DELAY);
 }
 
+void toggle()
+{
+    ActionData actionData;
+    actionData.action = LIGHT_TOGGLE;
+    xQueueSend(actionQueue, &actionData, portMAX_DELAY);
+}
+
+
 #define DEBOUNCE_TIME_MS 1
 
 unsigned long lastActionTimestamp = 0;

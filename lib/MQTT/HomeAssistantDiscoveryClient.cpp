@@ -1,44 +1,50 @@
 #include <HomeAssistantDiscoveryClient.h>
 #include <MiLightCommands.h>
 #include <Units.h>
-#ifdef ESP8266
-  #include <ESP8266WiFi.h>
-#elif ESP32
-  #include <WiFi.h>
+#if defined(ARDUINO_ARCH_ESP8266) || defined(ESP8266)
+#include <ESP8266WiFi.h>
+#elif defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+#include <WiFi.h>
 #endif
 
-HomeAssistantDiscoveryClient::HomeAssistantDiscoveryClient(Settings& settings, MqttClient* mqttClient)
-  : settings(settings)
-  , mqttClient(mqttClient)
-{ }
+HomeAssistantDiscoveryClient::HomeAssistantDiscoveryClient(Settings &settings, MqttClient *mqttClient)
+    : settings(settings), mqttClient(mqttClient)
+{
+}
 
-void HomeAssistantDiscoveryClient::sendDiscoverableDevices(const std::map<String, GroupAlias>& aliases) {
+void HomeAssistantDiscoveryClient::sendDiscoverableDevices(const std::map<String, GroupAlias> &aliases)
+{
 #ifdef MQTT_DEBUG
   Serial.printf_P(PSTR("HomeAssistantDiscoveryClient: Sending %d discoverable devices...\n"), aliases.size());
 #endif
 
-  for (const auto & alias : aliases) {
+  for (const auto &alias : aliases)
+  {
     addConfig(alias.first.c_str(), alias.second.bulbId);
   }
 }
 
-void HomeAssistantDiscoveryClient::removeOldDevices(const std::map<uint32_t, BulbId>& aliases) {
+void HomeAssistantDiscoveryClient::removeOldDevices(const std::map<uint32_t, BulbId> &aliases)
+{
 #ifdef MQTT_DEBUG
   Serial.printf_P(PSTR("HomeAssistantDiscoveryClient: Removing %d discoverable devices...\n"), aliases.size());
 #endif
 
-  for (auto itr = aliases.begin(); itr != aliases.end(); ++itr) {
+  for (auto itr = aliases.begin(); itr != aliases.end(); ++itr)
+  {
     removeConfig(itr->second);
   }
 }
 
-void HomeAssistantDiscoveryClient::removeConfig(const BulbId& bulbId) {
+void HomeAssistantDiscoveryClient::removeConfig(const BulbId &bulbId)
+{
   // Remove by publishing an empty message
   String topic = buildTopic(bulbId);
   mqttClient->send(topic.c_str(), "", true);
 }
 
-void HomeAssistantDiscoveryClient::addConfig(const char* alias, const BulbId& bulbId) {
+void HomeAssistantDiscoveryClient::addConfig(const char *alias, const BulbId &bulbId)
+{
   String topic = buildTopic(bulbId);
   DynamicJsonDocument config(1024);
 
@@ -72,7 +78,8 @@ void HomeAssistantDiscoveryClient::addConfig(const char* alias, const BulbId& bu
   deviceMetadata[F("cu")] = deviceUrl;
 
   // HomeAssistant only supports simple client availability
-  if (settings.mqttClientStatusTopic.length() > 0 && settings.simpleMqttClientStatus) {
+  if (settings.mqttClientStatusTopic.length() > 0 && settings.simpleMqttClientStatus)
+  {
     // availability topic
     config[F("avty_t")] = settings.mqttClientStatusTopic;
     // payload_available
@@ -91,38 +98,42 @@ void HomeAssistantDiscoveryClient::addConfig(const char* alias, const BulbId& bu
   effects.add(MiLightCommandNames::NIGHT_MODE);
 
   // These bulbs support switching between rgb/white, and have a "white_mode" command
-  switch (bulbId.deviceType) {
-    case REMOTE_TYPE_FUT089:
-    case REMOTE_TYPE_RGB_CCT:
-    case REMOTE_TYPE_RGBW:
-      effects.add("white_mode");
-      break;
-    default:
-      break; //nothing
+  switch (bulbId.deviceType)
+  {
+  case REMOTE_TYPE_FUT089:
+  case REMOTE_TYPE_RGB_CCT:
+  case REMOTE_TYPE_RGBW:
+    effects.add("white_mode");
+    break;
+  default:
+    break; // nothing
   }
 
   // All bulbs except CCT have 9 modes.  FUT029 and RGB/FUT096 has 9 modes, but they
   // are not selectable directly.  There are only "next mode" commands.
-  switch (bulbId.deviceType) {
-    case REMOTE_TYPE_CCT:
-    case REMOTE_TYPE_RGB:
-    case REMOTE_TYPE_FUT020:
-      break;
-    default:
-      addNumberedEffects(effects, 0, 8);
-      break;
+  switch (bulbId.deviceType)
+  {
+  case REMOTE_TYPE_CCT:
+  case REMOTE_TYPE_RGB:
+  case REMOTE_TYPE_FUT020:
+    break;
+  default:
+    addNumberedEffects(effects, 0, 8);
+    break;
   }
 
   // supported_color_modes
   JsonArray colorModes = config.createNestedArray(F("sup_clrm"));
 
   // Flag RGB support
-  if (MiLightRemoteTypeHelpers::supportsRgb(bulbId.deviceType)) {
+  if (MiLightRemoteTypeHelpers::supportsRgb(bulbId.deviceType))
+  {
     colorModes.add(F("rgb"));
   }
 
   // Flag adjustable color temp support
-  if (MiLightRemoteTypeHelpers::supportsColorTemp(bulbId.deviceType)) {
+  if (MiLightRemoteTypeHelpers::supportsColorTemp(bulbId.deviceType))
+  {
     colorModes.add(GroupStateFieldNames::COLOR_TEMP);
 
     config[F("max_mirs")] = COLOR_TEMP_MAX_MIREDS;
@@ -131,7 +142,8 @@ void HomeAssistantDiscoveryClient::addConfig(const char* alias, const BulbId& bu
 
   // should only have brightness in this list if there are no other color modes
   // https://www.home-assistant.io/integrations/light.mqtt/#supported_color_modes
-  if (colorModes.size() == 0) {
+  if (colorModes.size() == 0)
+  {
     colorModes.add(F("brightness"));
   }
 
@@ -143,7 +155,6 @@ void HomeAssistantDiscoveryClient::addConfig(const char* alias, const BulbId& bu
   Serial.printf_P(PSTR("  topic: %s\nconfig: %s\n"), topic.c_str(), message.c_str());
 #endif
 
-
   mqttClient->send(topic.c_str(), message.c_str(), true);
 }
 
@@ -151,11 +162,13 @@ void HomeAssistantDiscoveryClient::addConfig(const char* alias, const BulbId& bu
 //   <discovery_prefix>/<component>/[<node_id>/]<object_id>/config
 //
 // source: https://www.home-assistant.io/docs/mqtt/discovery/
-String HomeAssistantDiscoveryClient::buildTopic(const BulbId& bulbId) {
+String HomeAssistantDiscoveryClient::buildTopic(const BulbId &bulbId)
+{
   String topic = settings.homeAssistantDiscoveryPrefix;
 
   // Don't require the user to entier a "/" (or break things if they do)
-  if (! topic.endsWith("/")) {
+  if (!topic.endsWith("/"))
+  {
     topic += "/";
   }
 
@@ -175,7 +188,8 @@ String HomeAssistantDiscoveryClient::buildTopic(const BulbId& bulbId) {
   return topic;
 }
 
-String HomeAssistantDiscoveryClient::bindTopicVariables(const String& topic, const char* alias, const BulbId& bulbId) {
+String HomeAssistantDiscoveryClient::bindTopicVariables(const String &topic, const char *alias, const BulbId &bulbId)
+{
   String boundTopic = topic;
   String hexDeviceId = bulbId.getHexDeviceId();
 
@@ -189,8 +203,10 @@ String HomeAssistantDiscoveryClient::bindTopicVariables(const String& topic, con
   return boundTopic;
 }
 
-void HomeAssistantDiscoveryClient::addNumberedEffects(JsonArray& effectList, uint8_t start, uint8_t end) {
-  for (uint8_t i = start; i <= end; ++i) {
+void HomeAssistantDiscoveryClient::addNumberedEffects(JsonArray &effectList, uint8_t start, uint8_t end)
+{
+  for (uint8_t i = start; i <= end; ++i)
+  {
     effectList.add(String(i));
   }
 }

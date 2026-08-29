@@ -231,7 +231,7 @@ static void color_btn_event_cb(lv_event_t *e)
 
 void apply_switch_styles(lv_obj_t *sw)
 {
-  lv_obj_set_style_bg_color(sw, lv_color_hex(0xca9ee6), LV_PART_INDICATOR | LV_STATE_CHECKED);
+  lv_obj_set_style_bg_color(sw, lv_color_hex(0xca9ee6), (lv_style_selector_t)(LV_PART_INDICATOR | LV_STATE_CHECKED));
 }
 
 void initUi(lv_obj_t *parent)
@@ -253,33 +253,33 @@ void initUi(lv_obj_t *parent)
   /******************************* button1 *******************************/
   lv_obj_t *button1 = lv_obj_get_child(tab_bar, 0);
 
-  lv_obj_set_style_bg_opa(button1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_bg_color(button1, lv_color_hex(0xca9ee6), LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_border_width(button1, 2, LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_border_side(button1, LV_BORDER_SIDE_LEFT, LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_text_color(button1, lv_color_hex(0x1e1e2e), LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_bg_opa(button1, LV_OPA_COVER, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_bg_color(button1, lv_color_hex(0xca9ee6), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_border_width(button1, 2, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_border_side(button1, LV_BORDER_SIDE_LEFT, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_text_color(button1, lv_color_hex(0x1e1e2e), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
 
-  lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_border_opa(button1, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_border_width(button1, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_border_side(button1, LV_BORDER_SIDE_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_text_color(button1, lv_color_black(), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_color(button1, lv_color_make(0, 0, 0), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
+  lv_obj_set_style_border_opa(button1, LV_OPA_COVER, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
+  lv_obj_set_style_border_width(button1, 2, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
+  lv_obj_set_style_border_side(button1, LV_BORDER_SIDE_LEFT, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
+  lv_obj_set_style_text_color(button1, lv_color_black(), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
 
   /******************************* button2 *******************************/
   lv_obj_t *button2 = lv_obj_get_child(tab_bar, 1);
-  lv_obj_set_style_bg_opa(button2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_bg_color(button2, lv_color_hex(0xca9ee6), LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_border_width(button2, 2, LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_border_side(button2, LV_BORDER_SIDE_LEFT, LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_CHECKED);
-  lv_obj_set_style_text_color(button2, lv_color_hex(0x1e1e2e), LV_PART_MAIN | LV_STATE_CHECKED);
+  lv_obj_set_style_bg_opa(button2, LV_OPA_COVER, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_bg_color(button2, lv_color_hex(0xca9ee6), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_border_width(button2, 2, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_border_side(button2, LV_BORDER_SIDE_LEFT, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
+  lv_obj_set_style_text_color(button2, lv_color_hex(0x1e1e2e), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_CHECKED));
 
-  lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_border_opa(button2, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_border_width(button2, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_border_side(button2, LV_BORDER_SIDE_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
-  lv_obj_set_style_text_color(button2, lv_color_black(), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_border_color(button2, lv_color_make(0, 0, 0), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
+  lv_obj_set_style_border_opa(button2, LV_OPA_COVER, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
+  lv_obj_set_style_border_width(button2, 2, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
+  lv_obj_set_style_border_side(button2, LV_BORDER_SIDE_LEFT, (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
+  lv_obj_set_style_text_color(button2, lv_color_black(), (lv_style_selector_t)(LV_PART_MAIN | LV_STATE_DEFAULT));
 
   state = stateStore->get(myBulbId);
   int currentBrightness = state->getBrightness();
@@ -450,6 +450,16 @@ void initUi(lv_obj_t *parent)
   update_switch_from_variable(mmwaveSwitch, mmwaveState);
 }
 
+void ledcAnalogWrite(uint8_t pin, uint32_t value, uint32_t valueMax)
+{
+  uint32_t duty = (4095 / valueMax) * min(value, valueMax);
+#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+  ledcWrite(pin, duty);
+#else
+  ledcWrite(LEDC_CHANNEL_0, duty);
+#endif
+}
+
 // Hardware initialization function
 void initCydHardware()
 {
@@ -464,15 +474,15 @@ void initCydHardware()
   ts.setRotation(2);
 
 // setup backlight
-#if ESP_IDF_VERSION_MAJOR == 5
-  ledcAttach(LCD_BACK_LIGHT_PIN, LEDC_BASE_FREQ, LEDC_TIMER_12_BIT);
+#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 5
+  ledcAttach(LCD_BACK_LIGHT_PIN, LEDC_BASE_FREQ, 12);
 #else
-  ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_12_BIT);
+  ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, 12);
   ledcAttachPin(LCD_BACK_LIGHT_PIN, LEDC_CHANNEL_0);
 #endif
 
-  // write to backlight
-  ledcAnalogWrite(LEDC_CHANNEL_0, 100);
+  // write to backlight using GPIO pin
+  ledcAnalogWrite(LCD_BACK_LIGHT_PIN, 100);
 
   // setup ldr
   analogSetAttenuation(ADC_0db);
@@ -486,12 +496,6 @@ void initCydHardware()
 
   // Clear the screen before writing to it
   tft.fillScreen(TFT_BLACK);
-}
-
-void ledcAnalogWrite(uint8_t channel, uint32_t value, uint32_t valueMax)
-{
-  uint32_t duty = (4095 / valueMax) * min(value, valueMax);
-  ledcWrite(channel, duty);
 }
 
 int readLdr()
@@ -627,7 +631,6 @@ void checkTouched()
   }
 }
 
-
 void manageBacklight()
 {
   checkTouched();
@@ -639,7 +642,7 @@ void manageBacklight()
 
   if (backlightActive)
   {
-    ledcAnalogWrite(LEDC_CHANNEL_0, 150);
+    ledcAnalogWrite(LCD_BACK_LIGHT_PIN, 150);
     if (millis() > backlightTimeout)
       backlightActive = false;
   }
@@ -649,10 +652,9 @@ void manageBacklight()
     smoothedLdrValue = (alpha * ldrValue) + ((1 - alpha) * smoothedLdrValue);
     int brightness = map(smoothedLdrValue, 400, 0, 0, 150);
     brightness = constrain(brightness, 0, 150);
-    ledcAnalogWrite(LEDC_CHANNEL_0, brightness);
+    ledcAnalogWrite(LCD_BACK_LIGHT_PIN, brightness);
   }
 }
-
 
 uint32_t lastTick = 0;
 
@@ -683,7 +685,7 @@ void loopDisplay(void *param)
 void loopBacklight(void *param) {
   while (true)
   { 
-  manageBacklight();
-  delay(200);
+    manageBacklight();
+    delay(200);
   }
 }

@@ -2,6 +2,10 @@
 #define DEFINES_H
 
 #include <Arduino.h>
+
+#include <FS.h>
+using fs::FS;
+#include <ESP32SSDP.h>
 #define DEBUG_PRINTF
 
 #define DISABLE_ALL_LIBRARY_WARNINGS // to get rid of the touch cs missing warning
@@ -71,5 +75,6 @@ void milightTask(void *param);
 #include "ntp.h"
 #include "milightIncludes.h"
 #include "lightControl.h"
+#include "bleHandler.h"
 
 #endif

@@ -49,6 +49,7 @@ void nextMode();
 void previousMode();
 void speedUp();
 void speedDown();
+void toggle();
 
 
 
